@@ -1,6 +1,6 @@
+#include <stdint.h>
 #include <tuple>
 #include <array>
-#include <stdint.h>
 #include <string>
 #include <iostream>
 
@@ -120,33 +120,6 @@ public:
     } while (choice < 10 && !contains(choice));
     return choice;
   }
-
-public:
-  bool operator<(const choices_t &to) const noexcept { return _bits < to._bits; }
-
-public:
-  bool operator<=(const choices_t &to) const noexcept { return _bits <= to._bits; }
-
-public:
-  bool operator==(const choices_t &to) const noexcept { return _bits == to._bits; }
-
-public:
-  bool operator!=(const choices_t &to) const noexcept { return _bits != to._bits; }
-
-public:
-  bool operator>=(const choices_t &to) const noexcept { return _bits >= to._bits; }
-
-public:
-  bool operator>(const choices_t &to) const noexcept { return _bits > to._bits; }
-
-public:
-  int hash() const noexcept { return _bits ^ 0x101'1010'1010; }
-};
-
-template <>
-struct std::hash<choices_t>
-{
-  std::size_t operator()(choices_t const &s) const noexcept { return s.hash(); }
 };
 
 struct counts_t
@@ -386,25 +359,6 @@ struct game
       ans = std::pair<int, int>(0, 0);
     }
     return ans;
-  }
-
-  bool operator<(const game &to) const
-  {
-    for (int i = 0; i < 9; ++i)
-    {
-      for (int j = 0; j < 9; ++j)
-      {
-        if (board[i][j] < to.board[i][j])
-        {
-          return true;
-        }
-        if (to.board[i][j] < board[i][j])
-        {
-          return false;
-        }
-      }
-    }
-    return false;
   }
 };
 
