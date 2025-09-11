@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sudoku Assistant — Explain-as-you-go</title>
+  <title>Sudoku Assistant — Explain‑as‑you‑go</title>
   <style>
     :root{
       --bg:#0b0c0f; --panel:#111318; --ink:#e8ecf1; --muted:#64748b;
@@ -14,30 +14,570 @@
     body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial; color:var(--ink); background:#0b0c0f}
     header{padding:18px 16px; display:flex; gap:12px; align-items:center; justify-content:space-between; background:#0e1218; border-bottom:1px solid #0f172a}
     h1{font-size:18px; margin:0; font-weight:600; letter-spacing:.2px}
-    .wrap{max-width:1200px; margin:0 auto; padding:18px; display:grid; grid-template-columns: 1fr 360px; gap:18px}
+    .wrap{max-width:1200px; margin:0 auto; padding:18px; display:grid; grid-template-columns: 1fr 380px; gap:18px}
     @media (max-width: 980px){ .wrap{grid-template-columns:1fr} }
 
     /* Board */
     .board-wrap{position:relative; display:flex; align-items:center; justify-content:center;}
-    .board{width:min(92vw, 760px); aspect-ratio:1/1; background:var(--panel); border-radius:14px; padding:14px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 0 1px #0f172a}
+    .board{width:min(92vw, 760px); aspect-ratio:1/1; background:#0b1420; border-radius:16px; padding:16px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 0 1px #0f172a; position:relative}
     .grid{display:grid; grid-template-columns: repeat(9,1fr); grid-template-rows: repeat(9,1fr); width:100%; height:100%; position:relative;}
     .cell{position:relative; border:1px solid var(--grid);}    
     .cell.filled{background:#0b1020}
-    /* 3×3 blocks */
-    .cell[data-col="1"], .cell[data-col="4"], .cell[data-col="7"]{border-left-width:2px}
-    .cell[data-col="9"]{border-right-width:2px}
-    .cell[data-row="1"], .cell[data-row="4"], .cell[data-row="7"]{border-top-width:2px}
-    .cell[data-row="9"]{border-bottom-width:2px}
+    /* 3×3 blocks — visible on WEB */
+    .cell[data-col="1"], .cell[data-col="4"], .cell[data-col="7"]{border-left-width:4px; border-left-color:var(--bold)}
+    .cell[data-col="9"]{border-right-width:4px; border-right-color:var(--bold)}
+    .cell[data-row="1"], .cell[data-row="4"], .cell[data-row="7"]{border-top-width:4px; border-top-color:var(--bold)}
+    .cell[data-row="9"]{border-bottom-width:4px; border-bottom-color:var(--bold)}
+
+    .cell.selected{ box-shadow: inset 0 0 0 2px var(--accent); }
 
     .value{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size: clamp(20px, 4.2vw, 40px); font-weight:700; color:var(--bold)}
 
     /* candidates layout 3x3 mini-grid (screen help mode) */
+    .cand-text{display:none;} /* hide text candidates on screen */
     .cands{position:absolute; inset:2px; display:grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap:1px; padding:2px}
-    .cand{display:flex; align-items:center; justify-content:center; font-size: clamp(9px, 1.6vw, 16px); color:var(--muted); opacity:.85; border-radius:4px; cursor:pointer; user-select:none; position:relative}
+    .cand{display:flex; align-items:center; justify-content:center; font-size:clamp(9px,1.8vw,15px); color:#aebacc; opacity:.8; border-radius:4px; cursor:pointer; user-select:none; position:relative}
     .cand.disabled{opacity:.18; filter:grayscale(1)}
     .cand.only{font-weight:800; color:var(--ink); opacity:1}
+    .cand.hidden-single{ outline:2px solid var(--ok); color:var(--ok); font-weight:800; }
     .cand:hover{outline:1px solid var(--accent); color:var(--ink)}
 
-    .controls{background:var(--panel); border-radius:14px; padding:14px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 0 1px #0f172a; display:flex; flex-direction:column; gap:12px}
+    .controls{background:var(--panel); border-radius:14px; padding:12px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 1px #0f172a; display:flex; flex-direction:column; gap:12px}
     .controls h2{margin:0 0 6px 0; font-size:16px}
     .toolbar{display:flex; flex-wrap:wrap; gap:8px}
+    label.cb{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted)}
+    input[type="checkbox"]{transform:scale(1.1)}
+    select{background:#0f172a; color:var(--ink); border:1px solid #1f2937; padding:8px 10px; border-radius:10px}
+    button{background:#0f172a; color:var(--ink); border:1px solid #1f2937; padding:9px 12px; border-radius:10px; cursor:pointer}
+    button:hover{border-color:#334155}
+    button.primary{background:#1e293b}
+    button.warn{background:#1f1a1a; border-color:#3f2525; color:#fecaca}
+
+    .stack{display:flex; flex-direction:column; gap:8px; max-height:340px; overflow:auto}
+    .stack-item{display:flex; flex-direction:column; gap:8px; padding:8px 10px; background:#0d121e; color:#9fb3c8; box-shadow: inset 0 0 0 1px #14213a; border-radius:10px; font-size:13px}
+    .stack-row{display:flex; align-items:center; justify-content:space-between; gap:8px}
+    .stack-item input.note{width:100%; padding:7px 9px; border-radius:8px; border:1px solid #23314a; background:#0c1320; color:#dbe7f3}
+
+    .options{display:flex; flex-direction:column; gap:8px; background:var(--panel); border-radius:14px; padding:12px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 1px #0f172a}
+
+    .io{display:flex; flex-direction:column; gap:8px}
+    textarea{width:100%; min-height:160px; resize:vertical; padding:10px; background:#0c1120; color:#dbe7f3; border:1px solid #14213a; border-radius:10px; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;}
+
+    /* SVG overlay sits exactly over the GRID; JS sets its size/position to match grid */
+    .overlay{position:absolute; pointer-events:none; left:0; top:0; width:0; height:0;}
+
+    @media print{
+      @page{ size: letter portrait; margin: 0.5in; }
+      body{background:#fff; color:#000}
+      header, aside, .toolbar, .legend, .io, .options{display:none !important}
+      .wrap{max-width:none; padding:0; display:block}
+      .board{width:95% !important; height:auto; aspect-ratio:1/1; background:#fff; box-shadow:none; padding:0; margin:0 auto}
+      .grid .cell{border-color:#000}
+      .cell{background:#fff !important; color:#000}
+      .cell.filled{background:#fff !important; color:#000 !important}
+      .value{color:#000; font-size: clamp(28px, 5vw, 52px)}
+      .cand, .cands{display:none}
+      .cand-text{display:none}
+      body.print-hints .cand-text{display:block; position:absolute; top:4px; left:4px; right:4px; font-size:10px; line-height:1.1; color:#222}
+      svg.overlay{display:none}
+      /* Ensure thick 3x3 in print too (3px is fine on paper) */
+      .cell[data-col="1"], .cell[data-col="4"], .cell[data-col="7"]{border-left-width:3px}
+      .cell[data-col="9"]{border-right-width:3px}
+      .cell[data-row="1"], .cell[data-row="4"], .cell[data-row="7"]{border-top-width:3px}
+      .cell[data-row="9"]{border-bottom-width:3px}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Sudoku Assistant — explain every decision</h1>
+    <div class="toolbar">
+      <button id="btn-reset" class="warn">Reset</button>
+      <button id="btn-apply-singles" class="primary">Apply Singles</button>
+      <label class="cb"><input type="checkbox" id="helpToggle" checked> Help Me</label>
+      <select id="sel-diff">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+      <button id="btn-new">New Puzzle</button>
+      <button id="btn-print">Print</button>
+      <button id="btn-undo">Undo Choice</button>
+      <button id="btn-export">Export</button>
+      <button id="btn-share">Share</button>
+      <button id="btn-logcsv">Export Log</button>
+    </div>
+  </header>
+  <main class="wrap">
+    <section class="board-wrap">
+      <div class="board">
+        <div id="grid" class="grid" role="grid" aria-label="Sudoku grid"></div>
+        <svg id="overlay" class="overlay" viewBox="0 0 10 10" preserveAspectRatio="none">
+          <defs>
+            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L6,3 z" fill="var(--arrow)" />
+            </marker>
+          </defs>
+        </svg>
+      </div>
+    </section>
+    <aside class="controls">
+      <h2>Reasoning</h2>
+      <div id="legend" class="legend">Hover a pencil mark to see the reasoning. Keys: arrows/hjkl to move, 1–9 to place, . or 0 to clear, U undo, P print, N new, S share.</div>
+      <div class="stack" id="stack"></div>
+      <div class="options">
+        <label class="cb"><input type="checkbox" id="opt-uniques" checked> Show row/col lines & box highlight for uniqueness</label>
+        <label class="cb"><input type="checkbox" id="opt-hidden" checked> Highlight hidden singles in pencil marks</label>
+        <label class="cb"><input type="checkbox" id="opt-autosave" checked> Auto‑save to this browser</label>
+      </div>
+      <div class="io">
+        <div>
+          <button id="btn-import">Import ASCII</button>
+          <button id="btn-clear">Clear</button>
+        </div>
+        <textarea id="io" placeholder="Paste or edit a Sudoku ASCII (supports plain 9x9 or SUDOKU-ASCII v1 with MOVES)"></textarea>
+      </div>
+    </aside>
+  </main>
+
+<script>
+(() => {
+  const N=9; const DIGITS=[1,2,3,4,5,6,7,8,9];
+  const gridEl=document.getElementById('grid');
+  const overlaySvg=document.getElementById('overlay');
+  const stackEl=document.getElementById('stack');
+  const legendEl=document.getElementById('legend');
+  const ioEl=document.getElementById('io');
+  const helpToggle = document.getElementById('helpToggle');
+  const selDiff = document.getElementById('sel-diff');
+  const optUniques = document.getElementById('opt-uniques');
+  const optHidden = document.getElementById('opt-hidden');
+  const optAutosave = document.getElementById('opt-autosave');
+
+  let showHelp = helpToggle.checked;
+
+  // Model
+  let board = make2D(N,N,0);      // 0=empty else 1..9
+  let candidates = make2D(N,N,() => new Set(DIGITS));
+  let stack = [];
+  let initialBoard = null;
+  let selected = {r:0,c:0};
+  let actionLog = [];
+  let saveT = null;
+
+  // Utils
+  function nowISO(){ return new Date().toISOString(); }
+  function make2D(R,C,init){ return Array.from({length:R}, (_,r)=> Array.from({length:C}, (_,c)=> typeof init==='function' ? init(r,c) : init)); }
+  const unitCells = {
+    row: r => DIGITS.map((_,c)=> [r,c]),
+    col: c => DIGITS.map((_,r)=> [r,c]),
+    box: b => { const R = Math.floor(b/3)*3, C = (b%3)*3; const a=[]; for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) a.push([R+dr,C+dc]); return a; }
+  };
+  function cloneBoard(b){ return b.map(r=> r.slice()); }
+  function cloneCands(cs){ return cs.map(row=> row.map(set=> new Set([...set]))); }
+
+  function reset(){ board = make2D(N,N,0); candidates = make2D(N,N,() => new Set(DIGITS)); stack=[]; initialBoard = cloneBoard(board); render(); updateIOFromBoard(); log({type:'reset'}); scheduleSave(); }
+  function clearBoard(){ board = make2D(N,N,0); candidates = make2D(N,N,() => new Set(DIGITS)); stack=[]; render(); log({type:'clear'}); scheduleSave(); }
+
+  // === ASCII helpers (grid only) ===
+  function gridToASCII(b){
+    const cell = (v)=> v? ` ${v} ` : ' . ';
+    const groupLen = 9; // 3 cells × 3 chars = 9 hyphens per group
+    const MAJOR = `+${'-'.repeat(groupLen)}+${'-'.repeat(groupLen)}+${'-'.repeat(groupLen)}+`;
+    let out='';
+    for(let r=0;r<9;r++){
+      if(r%3===0) out+=MAJOR+'\n';
+      let line='|';
+      for(let c=0;c<9;c++){
+        line += cell(b[r][c]);
+        if(c%3===2) line+='|';
+      }
+      out+=line+'\n';
+    }
+    out+=MAJOR;
+    return out;
+  }
+  function parseGridFromLines(lines){
+    const digits=[];
+    for(const raw of lines){
+      const l = raw.trim(); if(!l) continue;
+      if(l[0]==='+'||l[0]==='-') continue; // skip border rows
+      if(l[0]==='|'||/[.0-9]/.test(l[0])){
+        const row=[]; for(const ch of l){
+          if(/[\|\s]/.test(ch)) continue; // skip bars/spaces
+          if(ch==='.'||ch==='0'||ch==='?') row.push(0); else if(/[1-9]/.test(ch)) row.push(Number(ch));
+        }
+        if(row.length) digits.push(row);
+      }
+    }
+    if(digits.length!==9 || digits.some(r=> r.length!==9)) throw new Error('Expecting 9 rows × 9 columns in ASCII grid.');
+    return digits;
+  }
+
+  function fromASCII(text){
+    if(/SUDOKU-ASCII\s*v1/i.test(text)){
+      const gridBlock = []; const moveBlock = []; let mode='';
+      for(const ln of text.split(/\r?\n/)){
+        const t=ln.trim();
+        if(/^GRID:?$/i.test(t)||/^FINAL:?$/i.test(t)){ mode='grid'; continue; }
+        if(/^MOVES:?$/i.test(t)){ mode='moves'; continue; }
+        if(/^END$/i.test(t)){ mode=''; continue; }
+        if(!t) continue;
+        if(mode==='grid') gridBlock.push(ln); else if(mode==='moves') moveBlock.push(ln);
+      }
+      const finalGrid = parseGridFromLines(gridBlock);
+      const moves = moveBlock.map(parseMoveLine).filter(Boolean);
+      const init = rewindToInitial(finalGrid, moves);
+      loadBoard(init);
+      for(const m of moves){ place(m.r, m.c, m.val, true, m.note||''); }
+      return cloneBoard(finalGrid);
+    }
+    return parseGridFromLines(text.split(/\r?\n/));
+  }
+
+  function toASCII(includeMoves=false){
+    const gridTxt = gridToASCII(board);
+    if(!includeMoves || stack.length===0){ return gridTxt; }
+    const header = '### SUDOKU-ASCII v1\nGRID:\n';
+    const movesTxt = stack.map((m,i)=> formatMoveLine(i,m)).join('\n');
+    return `${header}${gridTxt}\nMOVES:\n${movesTxt}\nEND`;
+  }
+
+  function formatMoveLine(i,m){
+    const note = (m.note||'').replace(/\n/g,' ');
+    return `move ${String(i+1).padStart(2,'0')}: r=${m.r+1} c=${m.c+1} prev=${m.prev||0} val=${m.val||0}${note? ` note=${note}`:''}`;
+  }
+  function parseMoveLine(line){
+    const m = /r\s*=\s*(\d+)\s+c\s*=\s*(\d+)\s+prev\s*=\s*(\d+)\s+val\s*=\s*(\d+)(?:\s+note\s*=\s*(.*))?/i.exec(line);
+    if(!m) return null;
+    const [_, r,c,prev,val,note] = m;
+    return { r: (+r)-1, c:(+c)-1, prev:+prev, val:+val, note: note? note.trim(): '' };
+  }
+  function rewindToInitial(finalGrid, moves){
+    const b = cloneBoard(finalGrid);
+    for(let i=moves.length-1; i>=0; i--){ const mv = moves[i]; b[mv.r][mv.c] = mv.prev; }
+    return b;
+  }
+
+  function loadBoard(b){ board = cloneBoard(b); initialBoard = cloneBoard(b);
+    candidates = make2D(N,N,() => new Set(DIGITS));
+    for(let r=0;r<9;r++) for(let c=0;c<9;c++) if(board[r][c]) eliminate(r,c,board[r][c]);
+    stack=[]; render(); }
+
+  function updateIOFromBoard(){ ioEl.value = toASCII(false); }
+
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+  function eliminate(r,c,val){
+    board[r][c]=val; candidates[r][c].clear();
+    for(let i=0;i<9;i++){ candidates[r][i].delete(val); candidates[i][c].delete(val); }
+    const R=Math.floor(r/3)*3, C=Math.floor(c/3)*3;
+    for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) candidates[R+dr][C+dc].delete(val);
+  }
+
+  function place(r,c,val, push=true, note=''){
+    if(board[r][c]===val) return;
+    const prev = board[r][c];
+    const prevCands = cloneCands(candidates);
+    if(val===0){
+      board[r][c]=0; candidates = make2D(N,N,() => new Set(DIGITS));
+      for(let rr=0;rr<9;rr++) for(let cc=0;cc<9;cc++) if(board[rr][cc]) eliminate(rr,cc,board[rr][cc]);
+    } else {
+      eliminate(r,c,val);
+    }
+    if(push) stack.push({r,c,prev, val, prevCands, note});
+    render();
+    log({type:'place', r, c, prev, val, note});
+    scheduleSave();
+  }
+
+  function revertTo(idx){
+    const ch = stack[idx]; if(!ch) return;
+    stack = stack.slice(0, idx);
+    if(ch.prevCands){ candidates = ch.prevCands; } else { candidates = make2D(N,N,() => new Set(DIGITS)); for(let r=0;r<9;r++) for(let c=0;c<9;c++) if(board[r][c]) eliminate(r,c,board[r][c]); }
+    board[ch.r][ch.c] = ch.prev;
+    render(); updateIOFromBoard();
+    log({type:'undo', toIndex: idx});
+    scheduleSave();
+  }
+
+  // === Overlay alignment helpers ===
+  function syncOverlayToGrid(){
+    const gRect = gridEl.getBoundingClientRect();
+    const bRect = gridEl.parentElement.getBoundingClientRect();
+    const left = gRect.left - bRect.left;
+    const top  = gRect.top  - bRect.top;
+    overlaySvg.style.left = left + 'px';
+    overlaySvg.style.top  = top  + 'px';
+    overlaySvg.style.width  = gRect.width + 'px';
+    overlaySvg.style.height = gRect.height + 'px';
+    overlaySvg.setAttribute('viewBox', `0 0 ${gRect.width} ${gRect.height}`);
+  }
+
+  function cellRectRel(r,c){
+    const cell = gridEl.children[r*9+c];
+    const cr = cell.getBoundingClientRect();
+    const gr = gridEl.getBoundingClientRect();
+    return { x: cr.left - gr.left, y: cr.top - gr.top, w: cr.width, h: cr.height };
+  }
+  function centerOf(r,c){ const R = cellRectRel(r,c); return { x: R.x + R.w/2, y: R.y + R.h/2 }; }
+
+  function showHover(r,c,d){
+    clearOverlay();
+    syncOverlayToGrid();
+    const sel = centerOf(r,c);
+
+    const conflicts = [];
+    for(let i=0;i<9;i++){
+      if(board[r][i]===d){ const t=centerOf(r,i); drawLine(sel.x, sel.y, t.x, t.y, {endArrow:true}); conflicts.push(`r${r+1}c${i+1}`); }
+      if(board[i][c]===d){ const t=centerOf(i,c); drawLine(sel.x, sel.y, t.x, t.y, {endArrow:true}); conflicts.push(`r${i+1}c${c+1}`); }
+    }
+    const R0=Math.floor(r/3)*3, C0=Math.floor(c/3)*3;
+    for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) if(board[R0+dr][C0+dc]===d){ const t=centerOf(R0+dr, C0+dc); drawLine(sel.x, sel.y, t.x, t.y, {endArrow:true}); conflicts.push(`r${R0+dr+1}c${C0+dc+1}`); }
+
+    const counts = precomputeCounts();
+    const rowCount = counts.row[r][d];
+    const colCount = counts.col[c][d];
+    const boxIndex = Math.floor(r/3)*3 + Math.floor(c/3);
+    const boxCount = counts.box[boxIndex][d];
+
+    if(optUniques.checked){
+      const W = overlaySvg.viewBox.baseVal.width || overlaySvg.clientWidth;
+      const H = overlaySvg.viewBox.baseVal.height || overlaySvg.clientHeight;
+      if(rowCount===1){ drawLine(0, sel.y, W, sel.y, {both:true}); }
+      if(colCount===1){ drawLine(sel.x, 0, sel.x, H, {both:true}); }
+      if(boxCount===1){
+        const tl = cellRectRel(R0, C0);
+        const br = cellRectRel(R0+2, C0+2);
+        const x=tl.x, y=tl.y, w=(br.x+br.w)-tl.x, h=(br.y+br.h)-tl.y;
+        drawBox(x, y, w, h);
+      }
+    }
+
+    // Explain
+    if(rowCount===1 || colCount===1 || boxCount===1){
+      const bits=[];
+      if(rowCount===1) bits.push(`only in row ${r+1}`);
+      if(colCount===1) bits.push(`only in col ${c+1}`);
+      if(boxCount===1) bits.push(`only in box ${Math.floor(r/3)+1},${Math.floor(c/3)+1}`);
+      setLegend(`Why: ${d} is ${bits.join(' & ')} for r${r+1}c${c+1}.`);
+    } else if(conflicts.length){
+      setLegend(`Conflicts for ${d} at r${r+1}c${c+1}: ${conflicts.slice(0,6).join(', ')}${conflicts.length>6? '…':''}`);
+    } else {
+      setLegend(`Candidate ${d} at r${r+1}c${c+1}.`);
+    }
+  }
+
+  function precomputeCounts(){
+    const row = Array.from({length:9},()=> Array(10).fill(0));
+    const col = Array.from({length:9},()=> Array(10).fill(0));
+    const box = Array.from({length:9},()=> Array(10).fill(0));
+    for(let r=0;r<9;r++) for(let c=0;c<9;c++) if(board[r][c]===0){
+      const b = Math.floor(r/3)*3 + Math.floor(c/3);
+      for(const d of candidates[r][c]){ row[r][d]++; col[c][d]++; box[b][d]++; }
+    }
+    return {row,col,box};
+  }
+
+  function setLegend(text){ legendEl.textContent = text; }
+
+  function countCandidatesInRow(r,d){ let n=0; for(let cc=0;cc<9;cc++) if(board[r][cc]===0 && candidates[r][cc].has(d)) n++; return n; }
+  function countCandidatesInCol(c,d){ let n=0; for(let rr=0;rr<9;rr++) if(board[rr][c]===0 && candidates[rr][c].has(d)) n++; return n; }
+  function countCandidatesInBox(R,C,d){ let n=0; for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++){ const rr=R+dr, cc=C+dc; if(board[rr][cc]===0 && candidates[rr][cc].has(d)) n++; } return n; }
+
+  function make2DZero(){ return Array.from({length:9}, ()=> Array(9).fill(0)); }
+  function generateFull(){
+    const b = make2DZero();
+    function backtrack(){
+      let r=-1,c=-1; for(let i=0;i<9;i++){ for(let j=0;j<9;j++){ if(b[i][j]===0){ r=i;c=j; break; } } if(r!==-1) break; }
+      if(r===-1) return true;
+      const opts=shuffle([...DIGITS]);
+      for(const d of opts){
+        const used=new Set(); for(let i=0;i<9;i++){ if(b[r][i]) used.add(b[r][i]); if(b[i][c]) used.add(b[i][c]); }
+        const R=Math.floor(r/3)*3, C=Math.floor(c/3)*3; for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) if(b[R+dr][C+dc]) used.add(b[R+dr][C+dc]);
+        if(!used.has(d)){ b[r][c]=d; if(backtrack()) return true; b[r][c]=0; }
+      }
+      return false;
+    }
+    backtrack(); return b;
+  }
+  function countSolutions(b, limit=2){
+    b = cloneBoard(b);
+    let count=0;
+    function backtrack(){ if(count>=limit) return; let r=-1,c=-1; for(let i=0;i<9;i++){ for(let j=0;j<9;j++){ if(b[i][j]===0){ r=i;c=j; break; } } if(r!==-1) break; }
+      if(r===-1){ count++; return; }
+      const used=new Set(); for(let i=0;i<9;i++){ if(b[r][i]) used.add(b[r][i]); if(b[i][c]) used.add(b[i][c]); }
+      const R=Math.floor(r/3)*3, C=Math.floor(c/3)*3; for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) if(b[R+dr][C+dc]) used.add(b[R+dr][C+dc]);
+      const opts=DIGITS.filter(d=>!used.has(d));
+      for(const d of opts){ b[r][c]=d; backtrack(); if(count>=limit) break; }
+      b[r][c]=0;
+    }
+    backtrack(); return count;
+  }
+  function newPuzzle(diff){
+    const targetClues = diff==='easy'? 40 : diff==='medium'? 32 : 26; // rough bands
+    let b = generateFull();
+    let cells = shuffle(Array.from({length:81},(_,i)=>i));
+    let clues = 81;
+    for(const idx of cells){ if(clues<=targetClues) break; const r=Math.floor(idx/9), c=idx%9; const save=b[r][c]; b[r][c]=0; const copy=cloneBoard(b); if(countSolutions(copy,2)!==1){ b[r][c]=save; } else { clues--; } }
+    loadBoard(b);
+    updateIOFromBoard();
+    log({type:'new', difficulty: diff});
+    scheduleSave();
+  }
+
+  // Rendering
+  function render(){
+    gridEl.innerHTML='';
+    while(overlaySvg.lastChild) overlaySvg.removeChild(overlaySvg.lastChild);
+    const defs=document.createElementNS('http://www.w3.org/2000/svg','defs');
+    defs.innerHTML='<marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L6,3 z" fill="var(--arrow)" /></marker>';
+    overlaySvg.appendChild(defs);
+
+    // Precompute hidden singles counts
+    const counts = precomputeCounts();
+
+    for(let r=0;r<N;r++){
+      for(let c=0;c<N;c++){
+        const cell=document.createElement('div'); cell.className='cell'; cell.dataset.row=r+1; cell.dataset.col=c+1;
+        if(selected.r===r && selected.c===c) cell.classList.add('selected');
+        const val=board[r][c];
+        if(val!==0){
+          cell.classList.add('filled'); const v=document.createElement('div'); v.className='value'; v.textContent=val; cell.appendChild(v);
+          cell.addEventListener('click', ()=>{ selected={r,c}; place(r,c,0,true); updateIOFromBoard(); });
+        } else {
+          cell.addEventListener('click', ()=>{ selected={r,c}; render(); });
+          if(showHelp){
+            const can=candidates[r][c]; const cands=document.createElement('div'); cands.className='cands';
+            for(const d of DIGITS){
+              const mini=document.createElement('div'); mini.className='cand'; mini.textContent=d;
+              if(!can.has(d)) mini.classList.add('disabled');
+              const b = Math.floor(r/3)*3 + Math.floor(c/3);
+              const isHidden = optHidden.checked && can.has(d) && (counts.row[r][d]===1 || counts.col[c][d]===1 || counts.box[b][d]===1);
+              if(can.size===1 && can.has(d)) mini.classList.add('only');
+              if(isHidden) mini.classList.add('hidden-single');
+              mini.addEventListener('mouseenter', ()=> showHover(r,c,d));
+              mini.addEventListener('mouseleave', ()=> { clearOverlay(); setLegend('Hover a pencil mark to see the reasoning.'); });
+              mini.addEventListener('click', (e)=>{ e.stopPropagation(); if(!can.has(d)) return; place(r,c,d,true); updateIOFromBoard(); });
+              cands.appendChild(mini);
+            }
+            cell.appendChild(cands);
+          }
+          const txt=document.createElement('div'); txt.className='cand-text';
+          const canList=[...candidates[r][c]].sort((a,b)=>a-b).join(' ');
+          txt.textContent=canList; cell.appendChild(txt);
+        }
+        gridEl.appendChild(cell);
+      }
+    }
+
+    syncOverlayToGrid();
+
+    // stack
+    stackEl.innerHTML='';
+    if(stack.length===0){ const none=document.createElement('div'); none.className='stack-item'; none.textContent='No choices yet'; stackEl.appendChild(none); }
+    else { stack.forEach((ch,idx)=>{
+        const it=document.createElement('div'); it.className='stack-item';
+        const row=document.createElement('div'); row.className='stack-row';
+        row.innerHTML=`<span>r${ch.r+1}c${ch.c+1}: <em>${ch.prev||'·'}</em> → <strong>${board[ch.r][ch.c]||'·'}</strong></span>`;
+        const btn=document.createElement('button'); btn.textContent='Undo to here'; btn.addEventListener('click', ()=> revertTo(idx));
+        row.appendChild(btn);
+        const note=document.createElement('input'); note.className='note'; note.placeholder='note (e.g., trying 7 because row/box)'; note.value=ch.note||''; note.addEventListener('input', (e)=>{ ch.note = e.target.value; scheduleSave(); });
+        it.appendChild(row); it.appendChild(note); stackEl.appendChild(it);
+      }); }
+  }
+
+  function clearOverlay(){ while(overlaySvg.childNodes.length>1) overlaySvg.removeChild(overlaySvg.lastChild); }
+
+  function drawLine(x1,y1,x2,y2,{endArrow=false,both=false}={}){
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('stroke', 'var(--arrow)'); line.setAttribute('stroke-width', '3');
+    line.setAttribute('stroke-linecap', 'round');
+    if(both){ line.setAttribute('marker-start', 'url(#arrowhead)'); line.setAttribute('marker-end', 'url(#arrowhead)'); }
+    else if(endArrow){ line.setAttribute('marker-end', 'url(#arrowhead)'); }
+    overlaySvg.appendChild(line);
+  }
+
+  function drawBox(x,y,w,h){
+    const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x', x+1); rect.setAttribute('y', y+1);
+    rect.setAttribute('width', Math.max(0,w-2)); rect.setAttribute('height', Math.max(0,h-2));
+    rect.setAttribute('fill', 'none'); rect.setAttribute('stroke', 'var(--arrow)'); rect.setAttribute('stroke-width','3');
+    overlaySvg.appendChild(rect);
+  }
+
+  // Import/Export buttons
+  document.getElementById('btn-import').addEventListener('click', ()=>{ try{ const finalB=fromASCII(ioEl.value); updateIOFromBoard(); log({type:'import'}); scheduleSave(); }catch(e){ alert(e.message); } });
+  document.getElementById('btn-clear').addEventListener('click', ()=> { ioEl.value=''; clearBoard(); });
+  document.getElementById('btn-new').addEventListener('click', ()=> newPuzzle(selDiff.value));
+  document.getElementById('btn-print').addEventListener('click', ()=>{ document.body.classList.toggle('print-hints', helpToggle.checked); window.print(); });
+  document.getElementById('btn-share').addEventListener('click', ()=>{ const link=createShareLink(); navigator.clipboard && navigator.clipboard.writeText(link); setLegend('Share link copied to clipboard.'); });
+  document.getElementById('btn-logcsv').addEventListener('click', exportLogCSV);
+  helpToggle.addEventListener('change', ()=> { showHelp = helpToggle.checked; render(); scheduleSave(); });
+  selDiff.addEventListener('change', scheduleSave);
+  document.getElementById('btn-reset').addEventListener('click', reset);
+  document.getElementById('btn-apply-singles').addEventListener('click', ()=>{
+    let applied=false; for(let r=0;r<9;r++) for(let c=0;c<9;c++){ if(board[r][c]===0 && candidates[r][c].size===1){ const d=[...candidates[r][c]][0]; place(r,c,d,true); applied=true; } }
+    if(applied){ updateIOFromBoard(); } else { alert('No singles to apply.'); }
+  });
+  document.getElementById('btn-undo').addEventListener('click', ()=>{ if(stack.length){ revertTo(stack.length-1); } });
+  document.getElementById('btn-export').addEventListener('click', ()=>{ const txt=toASCII(true); ioEl.value=txt; const blob=new Blob([txt],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='sudoku-with-moves.txt'; a.click(); URL.revokeObjectURL(a.href); });
+
+  // Keep overlay aligned on resize/zoom
+  const ro = new ResizeObserver(()=>{ syncOverlayToGrid(); });
+  ro.observe(gridEl);
+  window.addEventListener('resize', syncOverlayToGrid);
+
+  // Selection + keyboard
+  function select(rc){ selected = rc; render(); }
+  window.addEventListener('keydown', (e)=>{
+    const tag = (e.target && e.target.tagName)||''; if(tag==='INPUT' || tag==='TEXTAREA') return;
+    const k = e.key;
+    if(['ArrowLeft','h','H'].includes(k)){ select({r:selected.r, c: Math.max(0, selected.c-1)}); e.preventDefault(); }
+    else if(['ArrowRight','l','L'].includes(k)){ select({r:selected.r, c: Math.min(8, selected.c+1)}); e.preventDefault(); }
+    else if(['ArrowUp','k','K'].includes(k)){ select({r: Math.max(0, selected.r-1), c:selected.c}); e.preventDefault(); }
+    else if(['ArrowDown','j','J'].includes(k)){ select({r: Math.min(8, selected.r+1), c:selected.c}); e.preventDefault(); }
+    else if(k>='1' && k<='9'){ place(selected.r, selected.c, Number(k), true); e.preventDefault(); }
+    else if(k==='.' || k==='0' || k==='Backspace' || k==='Delete'){ place(selected.r, selected.c, 0, true); e.preventDefault(); }
+    else if(k==='u' || k==='U'){ if(stack.length) revertTo(stack.length-1); e.preventDefault(); }
+    else if(k==='p' || k==='P'){ document.body.classList.toggle('print-hints', helpToggle.checked); window.print(); e.preventDefault(); }
+    else if(k==='n' || k==='N'){ newPuzzle(selDiff.value); e.preventDefault(); }
+    else if(k==='s' || k==='S'){ const link=createShareLink(); navigator.clipboard && navigator.clipboard.writeText(link); setLegend('Share link copied to clipboard.'); e.preventDefault(); }
+    else if(k==='?'){ alert('Keys: arrows/hjkl move, 1–9 place, . or 0 clear, U undo, P print, N new, S share.'); }
+  });
+
+  // Logging
+  function log(evt){ actionLog.push({ts: nowISO(), ...evt}); }
+  function exportLogCSV(){
+    const rows = [['timestamp','type','r','c','prev','val','note','difficulty']];
+    for(const e of actionLog){ rows.push([e.ts,e.type,e.r??'',e.c??'',e.prev??'',e.val??'', quoteCSV(e.note||''), e.difficulty||'']); }
+    const csv = rows.map(r=> r.map(v=> typeof v==='string' && v.indexOf(',')>=0? `"${String(v).replace(/"/g,'""')}"` : String(v)).join(',')).join('\n');
+    const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='sudoku-log.csv'; a.click(); URL.revokeObjectURL(a.href);
+  }
+  function quoteCSV(s){ return s.replace(/\n/g,' '); }
+
+  // Autosave + share
+  function currentState(){ return { initial: initialBoard||make2DZero(), moves: stack.map(({r,c,prev,val,note})=>({r,c,prev,val,note})), help: showHelp, diff: selDiff.value }; }
+  function scheduleSave(){ if(!optAutosave.checked) return; clearTimeout(saveT); saveT = setTimeout(saveState, 200); }
+  function saveState(){ try{ localStorage.setItem('sudoku_state_v1', JSON.stringify(currentState())); }catch(_){} }
+  function restoreFromLocal(){ try{ const s=localStorage.getItem('sudoku_state_v1'); if(!s) return false; const st=JSON.parse(s); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateIOFromBoard(); return true; }catch(_){ return false; } }
+
+  function base64Encode(str){ return btoa(String.fromCharCode(...new TextEncoder().encode(str))); }
+  function base64Decode(b64){ return new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0))); }
+  function createShareLink(){ const payload = currentState(); const b64 = base64Encode(JSON.stringify(payload)); const url = new URL(window.location.href); url.hash = 's='+b64; return url.toString(); }
+  function restoreFromURL(){ const h=location.hash; if(!h || !h.startsWith('#s=')) return false; try{ const b64=h.slice(3); const json=base64Decode(b64); const st=JSON.parse(json); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateIOFromBoard(); return true; }catch(_){ return false; } }
+
+  // Initialize
+  // Try to restore from URL or localStorage; otherwise start fresh
+  if(!restoreFromURL()){
+    if(!restoreFromLocal()){
+      reset();
+      newPuzzle('medium');
+    }
+  }
+  updateIOFromBoard();
+})();
+</script>
+</body>
+</html>
