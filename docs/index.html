@@ -61,7 +61,7 @@
     .options{display:flex; flex-direction:column; gap:8px; background:var(--panel); border-radius:14px; padding:12px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 1px #0f172a}
 
     .io{display:flex; flex-direction:column; gap:8px}
-    textarea{width:100%; min-height:160px; resize:vertical; padding:10px; background:#0c1120; color:#dbe7f3; border:1px solid #14213a; border-radius:10px; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;}
+    textarea{width:100%; min-height:360px; resize:vertical; padding:10px; background:#0c1120; color:#dbe7f3; border:1px solid #14213a; border-radius:10px; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;}
 
     /* SVG overlay sits exactly over the GRID; JS sets its size/position to match grid */
     .overlay{position:absolute; pointer-events:none; left:0; top:0; width:0; height:0;}
@@ -135,7 +135,7 @@
           <button id="btn-import">Import ASCII</button>
           <button id="btn-clear">Clear</button>
         </div>
-        <textarea id="io" placeholder="Paste or edit a Sudoku ASCII (supports plain 9x9 or SUDOKU-ASCII v1 with MOVES)"></textarea>
+        <textarea id="io" rows="18"$1></textarea>
       </div>
     </aside>
   </main>
