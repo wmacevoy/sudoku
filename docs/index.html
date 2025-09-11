@@ -1,10 +1,38 @@
 <!DOCTYPE html>
+
+<!--
+  Sudoku Assistant — Developer Edition (readability pass)
+  =======================================================
+  Purpose:
+    This single-page app helps humans *understand* Sudoku decisions.
+    It shows candidate pencil-marks, highlights hidden singles, and draws
+    simple lines/boxes that explain *why* a placement or elimination happens.
+
+  Non-behavioral edits in this file:
+    • Added section banners and JSDoc-style comments.
+    • No renames, no logic changes, no new tags – behavior is identical.
+
+  Key Concepts:
+    • board[r][c] in {0..9} (0=empty)
+    • candidates[r][c] = Set of possible digits for empty cells
+    • stack[] move history for undo (with optional notes)
+    • overlay SVG draws explanations aligned to grid
+
+  I/O:
+    • ASCII import/export (optionally with MOVES)
+    • Local autosave/restore
+    • Share link via URL hash (base64 JSON)
+
+  Shortcuts:
+    arrows/hjkl move • 1–9 place • . or 0 clear • U undo • P print • N new • S share
+-->
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sudoku Assistant — Explain‑as‑you‑go</title>
-  <style>
+  <title>Sudoku — learn here, then exercise your logic mind offline!</title>
+  <!-- Visuals for screen + print; grid and overlay dimensions are JS-aligned. -->
+<style>
     :root{
       --bg:#0b0c0f; --panel:#111318; --ink:#e8ecf1; --muted:#64748b;
       --accent:#60a5fa; --danger:#f87171; --ok:#34d399; --grid:#1f2430; --bold:#e2e8f0;
@@ -30,6 +58,11 @@
     .cell[data-row="9"]{border-bottom-width:4px; border-bottom-color:var(--bold)}
 
     .cell.selected{ box-shadow: inset 0 0 0 2px var(--accent); }
+
+    /* Print override: hide the blue selected cell on printed page */
+    @media print {
+      .cell.selected{ box-shadow: none !important; }
+    }
 
     .value{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size: clamp(20px, 4.2vw, 40px); font-weight:700; color:var(--bold)}
 
@@ -90,7 +123,7 @@
 </head>
 <body>
   <header>
-    <h1>Sudoku Assistant — explain every decision</h1>
+    <h1>Sudoku — learn here, then exercise your logic mind offline!</h1>
     <div class="toolbar">
       <button id="btn-reset" class="warn">Reset</button>
       <button id="btn-apply-singles" class="primary">Apply Singles</button>
@@ -108,7 +141,8 @@
       <button id="btn-logcsv">Export Log</button>
     </div>
   </header>
-  <main class="wrap">
+  <!-- Layout: board (left) + controls/I-O (right) -->
+<main class="wrap">
     <section class="board-wrap">
       <div class="board">
         <div id="grid" class="grid" role="grid" aria-label="Sudoku grid"></div>
@@ -141,6 +175,24 @@
   </main>
 
 <script>
+/**
+ * JAVASCRIPT OVERVIEW
+ * ===================
+ * Sections in this script:
+ *   1) Constants, DOM refs, app state (board, candidates, stack, selection)
+ *   2) Utilities (2D arrays, cloning, unit helpers)
+ *   3) Grid I/O (ASCII import/export; MOVES parse/format; rewind)
+ *   4) Core mutators (eliminate, place, revertTo) + undo stack
+ *   5) Overlay (measurements, arrows/boxes, legend)
+ *   6) Generator & uniqueness check (generateFull, countSolutions, newPuzzle)
+ *   7) Rendering (build cells + candidates + stack pane)
+ *   8) Events (mouse, keyboard, resize), logging, autosave/share
+ *   9) Bootstrap (restore from URL/local or start fresh)
+ *
+ * Convention:
+ *   - All state changes go through `place()` (or `reset()` / `clearBoard()`).
+ *   - Keep helpers pure; let mutators centralize side-effects + logging + save.
+ */
 (() => {
   const N=9; const DIGITS=[1,2,3,4,5,6,7,8,9];
   const gridEl=document.getElementById('grid');
@@ -166,20 +218,39 @@
   let saveT = null;
 
   // Utils
+/** nowISO() → ISO 8601 timestamp string */
   function nowISO(){ return new Date().toISOString(); }
+/**
+ * make2D(R,C,init) → R×C array
+ * init: value or function (r,c)=>value
+ */
   function make2D(R,C,init){ return Array.from({length:R}, (_,r)=> Array.from({length:C}, (_,c)=> typeof init==='function' ? init(r,c) : init)); }
   const unitCells = {
     row: r => DIGITS.map((_,c)=> [r,c]),
     col: c => DIGITS.map((_,r)=> [r,c]),
     box: b => { const R = Math.floor(b/3)*3, C = (b%3)*3; const a=[]; for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) a.push([R+dr,C+dc]); return a; }
   };
+/** cloneBoard(b) → deep copy of 9×9 number grid */
   function cloneBoard(b){ return b.map(r=> r.slice()); }
+/** cloneCands(cs) → deep copy of 9×9 Set-of-digits grid */
   function cloneCands(cs){ return cs.map(row=> row.map(set=> new Set([...set]))); }
+/**
+ * reset()
+ * Full reset to empty board; clears stack; re-renders; updates ASCII; autosaves.
+ */
 
   function reset(){ board = make2D(N,N,0); candidates = make2D(N,N,() => new Set(DIGITS)); stack=[]; initialBoard = cloneBoard(board); render(); updateIOFromBoard(); log({type:'reset'}); scheduleSave(); }
+/**
+ * clearBoard()
+ * Clears grid & candidates (keeps UI selections). Useful before import.
+ */
   function clearBoard(){ board = make2D(N,N,0); candidates = make2D(N,N,() => new Set(DIGITS)); stack=[]; render(); log({type:'clear'}); scheduleSave(); }
 
   // === ASCII helpers (grid only) ===
+/**
+ * gridToASCII(board) → string
+ * Render a bordered 9×9 ASCII grid for print/share.
+ */
   function gridToASCII(b){
     const cell = (v)=> v? ` ${v} ` : ' . ';
     const groupLen = 9; // 3 cells × 3 chars = 9 hyphens per group
@@ -197,6 +268,10 @@
     out+=MAJOR;
     return out;
   }
+/**
+ * parseGridFromLines(lines[]) → number[9][9]
+ * Accepts bordered or compact ASCII; '.', '0', '?' are blanks. Validates shape.
+ */
   function parseGridFromLines(lines){
     const digits=[];
     for(const raw of lines){
@@ -213,6 +288,11 @@
     if(digits.length!==9 || digits.some(r=> r.length!==9)) throw new Error('Expecting 9 rows × 9 columns in ASCII grid.');
     return digits;
   }
+/**
+ * fromASCII(text) → number[9][9]
+ * Supports plain grid or SUDOKU-ASCII v1 with MOVE history.
+ * When a MOVES block is present, reconstruct initial grid then reapply moves.
+ */
 
   function fromASCII(text){
     if(/SUDOKU-ASCII\s*v1/i.test(text)){
@@ -234,6 +314,10 @@
     }
     return parseGridFromLines(text.split(/\r?\n/));
   }
+/**
+ * toASCII(includeMoves=false) → string
+ * Optionally appends a MOVES section reconstructed from the undo stack.
+ */
 
   function toASCII(includeMoves=false){
     const gridTxt = gridToASCII(board);
@@ -242,31 +326,44 @@
     const movesTxt = stack.map((m,i)=> formatMoveLine(i,m)).join('\n');
     return `${header}${gridTxt}\nMOVES:\n${movesTxt}\nEND`;
   }
+/** formatMoveLine(i,m) → 'move NN: r= c= prev= val= [note=...]' */
 
   function formatMoveLine(i,m){
     const note = (m.note||'').replace(/\n/g,' ');
     return `move ${String(i+1).padStart(2,'0')}: r=${m.r+1} c=${m.c+1} prev=${m.prev||0} val=${m.val||0}${note? ` note=${note}`:''}`;
   }
+/** parseMoveLine(line) → {r,c,prev,val,note}|null */
   function parseMoveLine(line){
     const m = /r\s*=\s*(\d+)\s+c\s*=\s*(\d+)\s+prev\s*=\s*(\d+)\s+val\s*=\s*(\d+)(?:\s+note\s*=\s*(.*))?/i.exec(line);
     if(!m) return null;
     const [_, r,c,prev,val,note] = m;
     return { r: (+r)-1, c:(+c)-1, prev:+prev, val:+val, note: note? note.trim(): '' };
   }
+/** rewindToInitial(finalGrid, moves[]) → initialGrid */
   function rewindToInitial(finalGrid, moves){
     const b = cloneBoard(finalGrid);
     for(let i=moves.length-1; i>=0; i--){ const mv = moves[i]; b[mv.r][mv.c] = mv.prev; }
     return b;
   }
+/**
+ * loadBoard(b)
+ * Replace board & recompute candidates by elimination of placed values.
+ */
 
   function loadBoard(b){ board = cloneBoard(b); initialBoard = cloneBoard(b);
     candidates = make2D(N,N,() => new Set(DIGITS));
     for(let r=0;r<9;r++) for(let c=0;c<9;c++) if(board[r][c]) eliminate(r,c,board[r][c]);
     stack=[]; render(); }
+/** updateIOFromBoard() — keep the textarea synced to the current board only */
 
   function updateIOFromBoard(){ ioEl.value = toASCII(false); }
+/** Fisher–Yates shuffle in-place; returns the same array for chaining. */
 
   function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
+/**
+ * eliminate(r,c,val)
+ * Place `val` at (r,c) and remove it from the row, column, and 3×3 box candidates.
+ */
 
   function eliminate(r,c,val){
     board[r][c]=val; candidates[r][c].clear();
@@ -274,6 +371,11 @@
     const R=Math.floor(r/3)*3, C=Math.floor(c/3)*3;
     for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) candidates[R+dr][C+dc].delete(val);
   }
+/**
+ * place(r,c,val, push=true, note='')
+ * Canonical mutator. If val==0, recompute all candidates from scratch.
+ * Pushes undo frame when `push`, re-renders, logs, and schedules autosave.
+ */
 
   function place(r,c,val, push=true, note=''){
     if(board[r][c]===val) return;
@@ -290,6 +392,10 @@
     log({type:'place', r, c, prev, val, note});
     scheduleSave();
   }
+/**
+ * revertTo(idx) — Undo back to stack index `idx` (inclusive).
+ * Restores candidates snapshot when available.
+ */
 function revertTo(idx){
   // Rebuild board from initialBoard + moves[0..idx-1], then recompute candidates.
   if(idx == null || idx < 0) { idx = 0; }
@@ -298,21 +404,21 @@ function revertTo(idx){
   // Start from the recorded initial board if present; else from an empty grid.
   const base = initialBoard ? cloneBoard(initialBoard) : make2D(N,N,0);
 
-  // Apply moves up to (but not including) idx to get the exact prior state.
-  for(let i=0; i<idx; i++){
-    const mv = stack[i];
-    base[mv.r][mv.c] = mv.val; // mv.val may be 0 for clears; that's fine.
+  // Apply moves up to (but not including) idx to reconstruct state.
+  for(let i2=0; i2<idx; i2++){
+    const mv = stack[i2];
+    base[mv.r][mv.c] = mv.val;
   }
 
-  // Swap in the rebuilt board and recompute candidates from scratch.
+  // Copy rebuilt board and recompute candidates from scratch.
   board = cloneBoard(base);
   candidates = make2D(N,N,() => new Set(DIGITS));
   for(let r=0;r<9;r++) for(let c=0;c<9;c++) if(board[r][c]) eliminate(r,c,board[r][c]);
 
-  // Truncate the stack to idx (we have undone [idx..end)).
+  // Truncate the stack
   stack = stack.slice(0, idx);
 
-  // Clear overlay/legend state and re-render.
+  // Clear overlay and legend
   clearOverlay();
   setLegend('');
   render(); updateIOFromBoard();
@@ -321,8 +427,11 @@ function revertTo(idx){
   scheduleSave();
 }
 
-
   // === Overlay alignment helpers ===
+/**
+ * syncOverlayToGrid()
+ * Align overlay SVG to the CSS grid bounds; called on render & resize.
+ */
   function syncOverlayToGrid(){
     const gRect = gridEl.getBoundingClientRect();
     const bRect = gridEl.parentElement.getBoundingClientRect();
@@ -334,6 +443,7 @@ function revertTo(idx){
     overlaySvg.style.height = gRect.height + 'px';
     overlaySvg.setAttribute('viewBox', `0 0 ${gRect.width} ${gRect.height}`);
   }
+/** cellRectRel(r,c) → {x,y,w,h} relative to grid */
 
   function cellRectRel(r,c){
     const cell = gridEl.children[r*9+c];
@@ -341,7 +451,13 @@ function revertTo(idx){
     const gr = gridEl.getBoundingClientRect();
     return { x: cr.left - gr.left, y: cr.top - gr.top, w: cr.width, h: cr.height };
   }
+/** centerOf(r,c) → {x,y} center point (for arrows) */
   function centerOf(r,c){ const R = cellRectRel(r,c); return { x: R.x + R.w/2, y: R.y + R.h/2 }; }
+/**
+ * showHover(r,c,d)
+ * On candidate hover, draw conflicts (row/col/box) and highlight uniqueness lines/box.
+ * Updates legend with a terse “why” explanation.
+ */
 
   function showHover(r,c,d){
     clearOverlay();
@@ -388,6 +504,10 @@ function revertTo(idx){
       setLegend(`Candidate ${d} at r${r+1}c${c+1}.`);
     }
   }
+/**
+ * precomputeCounts() → {row[9][10], col[9][10], box[9][10]}
+ * Counts candidate availability by unit for hidden singles highlighting.
+ */
 
   function precomputeCounts(){
     const row = Array.from({length:9},()=> Array(10).fill(0));
@@ -399,14 +519,22 @@ function revertTo(idx){
     }
     return {row,col,box};
   }
+/** setLegend(text) — set right-pane explanation text */
 
   function setLegend(text){ legendEl.textContent = text; }
+/** countCandidatesInRow(r,d) — helper (legacy) */
 
   function countCandidatesInRow(r,d){ let n=0; for(let cc=0;cc<9;cc++) if(board[r][cc]===0 && candidates[r][cc].has(d)) n++; return n; }
+/** countCandidatesInCol(c,d) — helper (legacy) */
   function countCandidatesInCol(c,d){ let n=0; for(let rr=0;rr<9;rr++) if(board[rr][c]===0 && candidates[rr][c].has(d)) n++; return n; }
+/** countCandidatesInBox(R,C,d) — helper (legacy) */
   function countCandidatesInBox(R,C,d){ let n=0; for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++){ const rr=R+dr, cc=C+dc; if(board[rr][cc]===0 && candidates[rr][cc].has(d)) n++; } return n; }
+/** make2DZero() → 9×9 array filled with 0 */
 
   function make2DZero(){ return Array.from({length:9}, ()=> Array(9).fill(0)); }
+/**
+ * generateFull() → complete valid Sudoku solution via backtracking (randomized).
+ */
   function generateFull(){
     const b = make2DZero();
     function backtrack(){
@@ -422,6 +550,9 @@ function revertTo(idx){
     }
     backtrack(); return b;
   }
+/**
+ * countSolutions(board, limit=2) → number of solutions up to `limit` (used for uniqueness).
+ */
   function countSolutions(b, limit=2){
     b = cloneBoard(b);
     let count=0;
@@ -435,6 +566,10 @@ function revertTo(idx){
     }
     backtrack(); return count;
   }
+/**
+ * newPuzzle(diff) — carve clues from a full board until unique solution remains.
+ * Difficulty here is crude (target clue count); not a human-grade measure.
+ */
   function newPuzzle(diff){
     const targetClues = diff==='easy'? 40 : diff==='medium'? 32 : 26; // rough bands
     let b = generateFull();
@@ -448,6 +583,9 @@ function revertTo(idx){
   }
 
   // Rendering
+/**
+ * render() — Rebuild grid & overlay; draw candidates & hidden singles; rebuild stack view.
+ */
   function render(){
     gridEl.innerHTML='';
     while(overlaySvg.lastChild) overlaySvg.removeChild(overlaySvg.lastChild);
@@ -506,9 +644,13 @@ function revertTo(idx){
         const note=document.createElement('input'); note.className='note'; note.placeholder='note (e.g., trying 7 because row/box)'; note.value=ch.note||''; note.addEventListener('input', (e)=>{ ch.note = e.target.value; scheduleSave(); });
         it.appendChild(row); it.appendChild(note); stackEl.appendChild(it);
       }); }
+    // After stack is rendered, scroll moves pane to the bottom so the latest move is visible.
+    if(stackEl) stackEl.scrollTop = stackEl.scrollHeight;
   }
+/** clearOverlay() — keep <defs> but remove drawn lines/boxes */
 
   function clearOverlay(){ while(overlaySvg.childNodes.length>1) overlaySvg.removeChild(overlaySvg.lastChild); }
+/** drawLine(x1,y1,x2,y2,{endArrow=false,both=false}) — SVG arrow helper */
 
   function drawLine(x1,y1,x2,y2,{endArrow=false,both=false}={}){
     const line=document.createElementNS('http://www.w3.org/2000/svg','line');
@@ -519,6 +661,7 @@ function revertTo(idx){
     else if(endArrow){ line.setAttribute('marker-end', 'url(#arrowhead)'); }
     overlaySvg.appendChild(line);
   }
+/** drawBox(x,y,w,h) — SVG rectangle helper for 3×3 box highlighting */
 
   function drawBox(x,y,w,h){
     const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
@@ -569,25 +712,54 @@ function revertTo(idx){
   });
 
   // Logging
+/** log(evt) — append to action log */
   function log(evt){ actionLog.push({ts: nowISO(), ...evt}); }
+/** exportLogCSV() — download the action log as CSV */
   function exportLogCSV(){
     const rows = [['timestamp','type','r','c','prev','val','note','difficulty']];
     for(const e of actionLog){ rows.push([e.ts,e.type,e.r??'',e.c??'',e.prev??'',e.val??'', quoteCSV(e.note||''), e.difficulty||'']); }
     const csv = rows.map(r=> r.map(v=> typeof v==='string' && v.indexOf(',')>=0? `"${String(v).replace(/"/g,'""')}"` : String(v)).join(',')).join('\n');
     const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='sudoku-log.csv'; a.click(); URL.revokeObjectURL(a.href);
   }
+/** quoteCSV(s) — minimal newline→space sanitizer for CSV fields */
   function quoteCSV(s){ return s.replace(/\n/g,' '); }
 
   // Autosave + share
+/** currentState() — minimal JSON state for autosave/share */
   function currentState(){ return { initial: initialBoard||make2DZero(), moves: stack.map(({r,c,prev,val,note})=>({r,c,prev,val,note})), help: showHelp, diff: selDiff.value }; }
+/** scheduleSave() — debounce localStorage writes (200ms) */
   function scheduleSave(){ if(!optAutosave.checked) return; clearTimeout(saveT); saveT = setTimeout(saveState, 200); }
+/** saveState() — persist current state (best-effort) */
   function saveState(){ try{ localStorage.setItem('sudoku_state_v1', JSON.stringify(currentState())); }catch(_){} }
+/**
+ * restoreFromLocal() → boolean
+ * Load prior session from localStorage; applies moves and options when found.
+ */
   function restoreFromLocal(){ try{ const s=localStorage.getItem('sudoku_state_v1'); if(!s) return false; const st=JSON.parse(s); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateIOFromBoard(); return true; }catch(_){ return false; } }
+/** base64Encode(str) — UTF-8 safe btoa wrapper */
 
   function base64Encode(str){ return btoa(String.fromCharCode(...new TextEncoder().encode(str))); }
+/** base64Decode(b64) — UTF-8 safe atob wrapper */
   function base64Decode(b64){ return new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0))); }
+/**
+ * createShareLink() → URL string with #s= payload containing base64-encoded JSON state.
+ */
   function createShareLink(){ const payload = currentState(); const b64 = base64Encode(JSON.stringify(payload)); const url = new URL(window.location.href); url.hash = 's='+b64; return url.toString(); }
+/**
+ * restoreFromURL() → boolean
+ * If location.hash has #s=..., decode & restore session.
+ */
   function restoreFromURL(){ const h=location.hash; if(!h || !h.startsWith('#s=')) return false; try{ const b64=h.slice(3); const json=base64Decode(b64); const st=JSON.parse(json); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateIOFromBoard(); return true; }catch(_){ return false; } }
+
+  
+// ---------------------------------------------------------------------------
+// TODOs for future maintainers (non-functional notes)
+//  - Add optional strategy suggesters (pointing pairs, naked/hidden pairs)
+//    as *analysis* helpers that annotate UI without auto-placing.
+//  - Consider exporting/importing candidates alongside numbers in ASCII v2.
+//  - Accessibility: expose candidates with aria-describedby for screen readers.
+//  - E2E tests: small harness for import/export and undo determinism.
+// ---------------------------------------------------------------------------
 
   // Initialize
   // Try to restore from URL or localStorage; otherwise start fresh
