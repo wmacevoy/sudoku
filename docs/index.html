@@ -135,6 +135,7 @@
       </select>
       <button id="btn-new">New Puzzle</button>
       <button id="btn-print">Print</button>
+      <button id="btn-why" title="Open the guided discussion (why.html)">Why?</button>
       <button id="btn-undo">Undo Choice</button>
       <button id="btn-export">Export</button>
       <button id="btn-share">Share</button>
@@ -676,6 +677,7 @@ function revertTo(idx){
   document.getElementById('btn-clear').addEventListener('click', ()=> { ioEl.value=''; clearBoard(); });
   document.getElementById('btn-new').addEventListener('click', ()=> newPuzzle(selDiff.value));
   document.getElementById('btn-print').addEventListener('click', ()=>{ document.body.classList.toggle('print-hints', helpToggle.checked); window.print(); });
+  document.getElementById('btn-why').addEventListener('click', ()=>{ window.open('why.html','_blank','noopener'); });
   document.getElementById('btn-share').addEventListener('click', ()=>{ const link=createShareLink(); navigator.clipboard && navigator.clipboard.writeText(link); setLegend('Share link copied to clipboard.'); });
   document.getElementById('btn-logcsv').addEventListener('click', exportLogCSV);
   helpToggle.addEventListener('change', ()=> { showHelp = helpToggle.checked; render(); scheduleSave(); });

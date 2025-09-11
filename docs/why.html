@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Why Do Sudoku “By Hand”? — A Guided Discussion for CS Students</title>
+  <style>
+    :root {
+      --bg: #0b0c0f;
+      --ink: #e8ecf1;
+      --muted: #94a3b8;
+      --panel: #111318;
+      --border: #1e293b;
+      --accent: #60a5fa;
+      --ok: #34d399;
+      --warn: #f59e0b;
+      --paper: #ffffff;
+      --paper-ink: #0b0c0f;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial
+    }
+
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 28px 16px 60px
+    }
+
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 18px
+    }
+
+    h1 {
+      font-size: clamp(22px, 3.6vw, 34px);
+      margin: 0
+    }
+
+    .lede {
+      color: var(--muted);
+      margin: 0 0 4px 0
+    }
+
+    .tools {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    button,
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--ink);
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover,
+    .btn:hover {
+      border-color: #2b3b55
+    }
+
+    .pill {
+      font-size: .85rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted)
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px
+    }
+
+    .block {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .block header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .block h2 {
+      font-size: 1.05rem;
+      margin: 0
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .status .tag {
+      font-size: .8rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted)
+    }
+
+    .content {
+      display: none;
+      padding: 14px
+    }
+
+    .content.open {
+      display: block
+    }
+
+    .content p {
+      line-height: 1.65;
+      margin: .7rem 0
+    }
+
+    .content ol,
+    .content ul {
+      margin: .4rem 0 .4rem 1.25rem
+    }
+
+    details {
+      margin: .5rem 0
+    }
+
+    summary {
+      cursor: pointer;
+      color: var(--accent)
+    }
+
+    .prompt {
+      background: #0f1625;
+      border: 1px dashed #233148;
+      padding: 12px;
+      border-radius: 12px;
+      margin-top: 8px
+    }
+
+    .prompt h3 {
+      margin: .2rem 0 .2rem 0;
+      font-size: .95rem
+    }
+
+    .done {
+      color: var(--ok);
+      border-color: #254936
+    }
+
+    .muted {
+      color: var(--muted)
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 10px 0
+    }
+
+    footer {
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: .9rem
+    }
+
+    .note {
+      font-size: .9rem;
+      color: var(--muted)
+    }
+
+    .flex {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    .right {
+      margin-left: auto
+    }
+
+    @media (max-width:720px) {
+      .tools {
+        flex-direction: column;
+        align-items: flex-start
+      }
+    }
+
+    /* Print: show everything expanded, hide buttons */
+    @media print {
+      body {
+        background: #fff;
+        color: #000
+      }
+
+      .block,
+      .content {
+        background: #fff;
+        border-color: #ccc
+      }
+
+      button,
+      .btn,
+      .tools,
+      .right,
+      .pill {
+        display: none !important
+      }
+
+      .content {
+        display: block !important
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <header>
+      <h1>Why Do Sudoku “By Hand”?</h1>
+      <p class="lede">Work through each section to understand.</p>
+      <div class="tools">
+        <span class="pill">Format: unfold each block in order</span>
+        <button id="resetProgress" title="Clear just this page’s progress">Reset Progress</button>
+        <a class="btn" href="#" onclick="window.print(); return false;">Print</a>
+      </div>
+    </header>
+
+    <!-- Blocks -->
+    <section id="blocks" class="grid">
+      <!-- 1 Easy (web + hints) -->
+      <article class="block" data-step="1">
+        <header>
+          <h2>Block 1 — Easy (web, with hints)</h2>
+          <div class="status"><span class="tag">locked</span><button class="toggle">Open</button></div>
+        </header>
+        <div class="content">
+          <p>Open the Sudoku assistant with <strong>Help</strong> on. Play <em>one easy</em> puzzle. Don’t overthink
+            it—just click around.</p>
+          <details>
+            <summary>What to notice (optional)</summary>
+            <ul class="muted">
+              <li>The tool’s pencil marks and “only” positions</li>
+              <li>How often you rely on highlights vs. your own working memory</li>
+            </ul>
+          </details>
+          <div class="prompt">
+            <h3>After you finish</h3>
+            <ul>
+              <li>Did that feel like solving a puzzle, or like pushing buttons?</li>
+              <li>What was your mind up to? Where was your attention?</li>
+            </ul>
+          </div>
+          <div class="flex">
+            <button class="markDone">Mark Block 1 Complete</button>
+            <span class="note">This unlocks Block 2.</span>
+            <span class="right pill">Goal: feel the “mindless mode.”</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- 2 Easy (paper, no hints) -->
+      <article class="block" data-step="2">
+        <header>
+          <h2>Block 2 — Easy (paper, no hints)</h2>
+          <div class="status"><span class="tag">locked</span><button class="toggle">Open</button></div>
+        </header>
+        <div class="content">
+          <p>Generate an <strong>easy</strong> puzzle, <em>disable Help</em>, print it, and solve it with pencil.</p>
+          <ul>
+            <li>Cross out, annotate, backtrack. <em>Own the state.</em></li>
+          </ul>
+          <div class="prompt">
+            <h3>Discussion prompts</h3>
+            <ul>
+              <li>What do you remember about solving the puzzle from playig the web version?</li>
+              <li>Now what is your mind up to?</li>
+            </ul>
+          </div>
+          <div class="flex">
+            <button class="markDone">Mark Block 2 Complete</button>
+            <span class="note">This unlocks Block 3.</span>
+            <span class="right pill">Goal: feel the “workout mode.”</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- 3 Easy (web again, with hints) -->
+      <article class="block" data-step="3">
+        <header>
+          <h2>Block 3 — Easy (web again, with hints)</h2>
+          <div class="status"><span class="tag">locked</span><button class="toggle">Open</button></div>
+        </header>
+        <div class="content">
+          <p>Play <em>another easy</em> puzzle online with Help on.</p>
+          <div class="prompt">
+            <h3>What changed?</h3>
+            <ul>
+              <li>What do you notice now that you didn’t notice the first easy web try in Block 1?</li>
+              <li>Do you still click mindlessly, or do you think about why one option works and others do not?</li>
+            </ul>
+          </div>
+          <div class="flex">
+            <button class="markDone">Mark Block 3 Complete</button>
+            <span class="note">This unlocks Block 4.</span>
+            <span class="right pill">Goal: experience the contrast.</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- 4 Medium (web) -->
+      <article class="block" data-step="4">
+        <header>
+          <h2>Block 4 — Medium (web, with hints)</h2>
+          <div class="status"><span class="tag">locked</span><button class="toggle">Open</button></div>
+        </header>
+        <div class="content">
+          <p>Play <em>one medium</em> puzzle online.</p>
+          <div class="prompt">
+            <h3>Discussion prompts</h3>
+            <ul>
+              <li>What were you noticing now?</li>
+              <li>Which strategies did you consciously choose, not just follow?</li>
+            </ul>
+          </div>
+          <div class="flex">
+            <button class="markDone">Mark Block 4 Complete</button>
+            <span class="note">This unlocks Block 5.</span>
+            <span class="right pill">Goal: see the ceiling of assistance.</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- 5 Medium (paper) -->
+      <article class="block" data-step="5">
+        <header>
+          <h2>Block 5 — Medium (paper, no hints)</h2>
+          <div class="status"><span class="tag">locked</span><button class="toggle">Open</button></div>
+        </header>
+        <div class="content">
+          <p>Generate and print a <strong>medium</strong> puzzle. Solve it by hand. No tool assistance.</p>
+          <div class="prompt">
+            <h3>Debrief</h3>
+            <ul>
+              <li>How did the mental load compare to the web version?</li>
+              <li>How did you manage unwinding from trying something out that failed?</li>
+            </ul>
+          </div>
+          <div class="flex">
+            <button class="markDone">Mark Block 5 Complete</button>
+            <span class="note">Unlocks the wrap-up blocks below.</span>
+            <span class="right pill">Goal: feel the full “manual” workout.</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- 6 Brain Gyms: Creativity -->
+      <article class="block" data-step="6">
+        <header>
+          <h2>The Lesson</h2>
+          <div class="status"><span class="tag">locked</span><button class="toggle">Open</button></div>
+        </header>
+        <div class="content">
+          <div class="prompt">
+            <p>To stay physically fit, you must at least sometimes use the stairs even when there is an
+              elevator. Or you will eventually be unable to use the stairs with many other consequences.</p>
+            <p>Computers are elevators for your brain. But if that's all you do, your brain will be unfit. <strong>LLM's
+                make this especially true. They are fantastic for efficiency, but dependence leaves your mind unfit. You need to sometimes choose to use the mental stairs.</strong></p>
+            <p>Sudoku is a push-up for your attention and logic brain. For it to work, <strong>you have to do the push up.</strong>
+              Watching a hockey game is not exercise.
+            </p>
+
+            <p>Here are other parts of your brain you should think about exercising: </p>
+            <ul>
+              <li>
+                Creativity
+              </li>
+              <li>
+                Social intelligence
+              </li>
+              <li>
+                Attention
+              </li>
+            </ul>
+
+            <p>These are all parts of a healthy life, but the last one is crucial. The modern world is a fine-tuned
+              assult
+              on your attention, which it actively works to erode. If you don't exercise your attention, nothing else
+              really matters.</p>
+            <p>Sudoku on paper exercises attention and logic. Work one out with a friend to build social intelligence.
+              Thinking of and doing other exercises for you and your companion and now you are working on creativity.
+            </p>
+
+            <p>These habits add up—over time they shape how you think.</p>
+
+          </div>
+          <div class="flex">
+            <button class="markDone">Mark Creativity Block Complete</button>
+            <span class="note">This unlocks your healthy mind.</span>
+          </div>
+
+        </div>
+      </article>
+      <footer>
+        <div class="divider"></div>
+      </footer>
+  </main>
+
+  <script>
+    // Simple sequential gating with localStorage
+    (function () {
+      const blocks = Array.from(document.querySelectorAll('.block'));
+      const storeKey = 'why_progress_v1';
+      let progress = JSON.parse(localStorage.getItem(storeKey) || '{}');
+
+      function setStatus(el, text, done) {
+        const tag = el.querySelector('.status .tag');
+        tag.textContent = done ? 'done' : (text || 'locked');
+        tag.classList.toggle('done', !!done);
+      }
+      function openContent(el) {
+        el.querySelector('.content').classList.add('open');
+        const tag = el.querySelector('.status .tag');
+        if (tag.textContent === 'locked') tag.textContent = 'open';
+      }
+      function closeContent(el) {
+        el.querySelector('.content').classList.remove('open');
+        const tag = el.querySelector('.status .tag');
+        if (tag.textContent !== 'done') tag.textContent = 'locked';
+      }
+      function unlock(step) {
+        const el = document.querySelector('.block[data-step=\"' + step + '\"]');
+        if (el) {
+          const tag = el.querySelector('.status .tag');
+          if (tag.textContent === 'locked') tag.textContent = 'open';
+        }
+      }
+      function isDone(step) { return !!progress['step' + step]; }
+
+      blocks.forEach((el) => {
+        const step = Number(el.dataset.step);
+        const btn = el.querySelector('.toggle');
+        const doneBtn = el.querySelector('.markDone');
+        const content = el.querySelector('.content');
+
+        setStatus(el, 'locked', isDone(step));
+        if (isDone(step)) { setStatus(el, null, true); content.classList.add('open'); }
+
+        btn.addEventListener('click', () => {
+          if (content.classList.contains('open')) closeContent(el); else openContent(el);
+        });
+
+        if (doneBtn) {
+          doneBtn.addEventListener('click', () => {
+            progress['step' + step] = true;
+            localStorage.setItem(storeKey, JSON.stringify(progress));
+            setStatus(el, null, true);
+            content.classList.add('open');
+            const next = step + 1;
+            unlock(next);
+            const nextEl = document.querySelector('.block[data-step=\"' + next + '\"]');
+            if (nextEl) {
+              openContent(nextEl);
+              nextEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          });
+        }
+      });
+
+      if (Object.keys(progress).length === 0) {
+        blocks.forEach((el) => { setStatus(el, 'locked', false); closeContent(el); });
+        const first = document.querySelector('.block[data-step=\"1\"]');
+        if (first) { openContent(first); setStatus(first, 'open', false); }
+      } else {
+        for (let i = 1; i <= blocks.length; i++) {
+          if (!isDone(i)) { unlock(i); break; }
+        }
+      }
+
+      document.getElementById('resetProgress').addEventListener('click', () => {
+        if (confirm('Reset progress for this page?')) {
+          localStorage.removeItem(storeKey);
+          location.reload();
+        }
+      });
+    })();
+  </script>
+</body>
+
+</html>
