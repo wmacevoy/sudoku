@@ -124,7 +124,13 @@
       .cell[data-col="9"]{border-right-width:3px}
       .cell[data-row="1"], .cell[data-row="4"], .cell[data-row="7"]{border-top-width:3px}
       .cell[data-row="9"]{border-bottom-width:3px}
+      /* Show QR section on print */
+      .print-qr{display:flex !important; align-items:center; gap:12px; border:1px solid #000; padding:8px; border-radius:8px; margin:12px 18px 0 18px; break-inside: avoid; page-break-inside: avoid;}
+      .print-qr img{width:120px; height:120px}
+      .print-qr .txt{font-size:12pt}
     }
+    /* Hidden on screen, shown on print */
+    .print-qr{display:none}
   </style>
 </head>
 <body>
@@ -180,6 +186,13 @@
       </div>
     </aside>
   </main>
+  <section class="print-qr" aria-label="QR code to play online">
+    <img src="qr.png" alt="QR code for https://wmacevoy.github.io/sudoku/">
+    <div class="txt">
+      <div><strong>Play online:</strong></div>
+      <div>https://wmacevoy.github.io/sudoku/</div>
+    </div>
+  </section>
 
 <script>
 /**
