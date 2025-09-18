@@ -69,7 +69,7 @@
     /* candidates layout 3x3 mini-grid (screen help mode) */
     .cand-text{display:none;} /* hide text candidates on screen */
     .cands{position:absolute; inset:2px; display:grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap:1px; padding:2px}
-    .cand{display:flex; align-items:center; justify-content:center; font-size:clamp(9px,1.8vw,15px); color:#aebacc; opacity:.8; border-radius:4px; cursor:pointer; user-select:none; position:relative}
+    .cand{display:flex; align-items:center; justify-content:center; font-size:clamp(9px,1.8vw,15px); color:#aebacc; opacity:.8; border-radius:4px; cursor:pointer; user-select:none; position:relative; touch-action: manipulation}
     .cand.disabled{opacity:.18; filter:grayscale(1)}
     .cand.only{font-weight:800; color:var(--ink); opacity:1}
     .cand.hidden-single{ outline:2px solid var(--ok); color:var(--ok); font-weight:800; }
@@ -77,6 +77,7 @@
 
     .controls{background:var(--panel); border-radius:14px; padding:12px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 1px #0f172a; display:flex; flex-direction:column; gap:12px}
     .controls h2{margin:0 0 6px 0; font-size:16px}
+    .legend{height:72px; overflow:auto}
     .toolbar{display:flex; flex-wrap:wrap; gap:8px}
     label.cb{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted)}
     input[type="checkbox"]{transform:scale(1.1)}
@@ -158,7 +159,7 @@
     </section>
     <aside class="controls">
       <h2>Reasoning</h2>
-      <div id="legend" class="legend">Hover a pencil mark to see the reasoning. Keys: arrows/hjkl to move, 1–9 to place, . or 0 to clear, U undo, P print, N new, S share.</div>
+      <div id="legend" class="legend">Hover or tap a pencil mark to see the reasoning. Double‑click or double‑tap to place. Keys: arrows/hjkl to move, 1–9 to place, . or 0 to clear, U undo, P print, N new, S share.</div>
       <div class="stack" id="stack"></div>
       <div class="options">
         <label class="cb"><input type="checkbox" id="opt-uniques" checked> Show row/col lines & box highlight for uniqueness</label>
@@ -208,6 +209,7 @@
   const optAutosave = document.getElementById('opt-autosave');
 
   let showHelp = helpToggle.checked;
+  const DEFAULT_LEGEND = 'Hover or tap a pencil mark to see the reasoning. Double-click or double-tap to place.';
 
   // Model
   let board = make2D(N,N,0);      // 0=empty else 1..9
@@ -616,9 +618,32 @@ function revertTo(idx){
               const isHidden = optHidden.checked && can.has(d) && (counts.row[r][d]===1 || counts.col[c][d]===1 || counts.box[b][d]===1);
               if(can.size===1 && can.has(d)) mini.classList.add('only');
               if(isHidden) mini.classList.add('hidden-single');
+              // Desktop hover for explanation
               mini.addEventListener('mouseenter', ()=> showHover(r,c,d));
-              mini.addEventListener('mouseleave', ()=> { clearOverlay(); setLegend('Hover a pencil mark to see the reasoning.'); });
-              mini.addEventListener('click', (e)=>{ e.stopPropagation(); if(!can.has(d)) return; place(r,c,d,true); updateIOFromBoard(); });
+              mini.addEventListener('mouseleave', ()=> { clearOverlay(); setLegend(DEFAULT_LEGEND); });
+              // Desktop single click: show explanation (do not place)
+              mini.addEventListener('click', (e)=>{ e.stopPropagation(); showHover(r,c,d); });
+              // Desktop double click: place if allowed
+              mini.addEventListener('dblclick', (e)=>{ e.preventDefault(); e.stopPropagation(); if(!can.has(d)) { showHover(r,c,d); return; } place(r,c,d,true); updateIOFromBoard(); });
+              // Touch/pen: single tap shows explanation; double-tap places
+              mini.addEventListener('pointerdown', (e)=>{
+                if(e.pointerType==='touch' || e.pointerType==='pen'){
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const now = Date.now();
+                  const last = mini._lastTap || 0;
+                  const threshold = 300;
+                  if(now - last < threshold){
+                    mini._lastTap = 0;
+                    if(can.has(d)) { place(r,c,d,true); updateIOFromBoard(); }
+                    else { showHover(r,c,d); }
+                  } else {
+                    mini._lastTap = now;
+                    showHover(r,c,d);
+                    setTimeout(()=>{ if(mini._lastTap && Date.now() - mini._lastTap >= threshold){ mini._lastTap = 0; } }, threshold+20);
+                  }
+                }
+              });
               cands.appendChild(mini);
             }
             cell.appendChild(cands);
@@ -694,6 +719,8 @@ function revertTo(idx){
   const ro = new ResizeObserver(()=>{ syncOverlayToGrid(); });
   ro.observe(gridEl);
   window.addEventListener('resize', syncOverlayToGrid);
+  // Prevent default double-click behaviors (like text selection or zoom) on the grid area
+  gridEl.addEventListener('dblclick', (e)=>{ e.preventDefault(); }, true);
 
   // Selection + keyboard
   function select(rc){ selected = rc; render(); }
