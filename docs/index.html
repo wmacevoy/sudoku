@@ -87,6 +87,11 @@
     button.primary{background:#1e293b}
     button.warn{background:#1f1a1a; border-color:#3f2525; color:#fecaca}
 
+    /* Emphasize key toolbar actions */
+    #btn-print{ font-weight:800 }
+    #btn-why{ border:2px solid var(--ok); color:var(--ok); font-weight:800 }
+    #btn-why:hover{ border-color: var(--ok) }
+
     .stack{display:flex; flex-direction:column; gap:8px; max-height:340px; overflow:auto}
     .stack-item{display:flex; flex-direction:column; gap:8px; padding:8px 10px; background:#0d121e; color:#9fb3c8; box-shadow: inset 0 0 0 1px #14213a; border-radius:10px; font-size:13px}
     .stack-row{display:flex; align-items:center; justify-content:space-between; gap:8px}

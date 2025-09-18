@@ -1,515 +1,383 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Why Do Sudoku “By Hand”? — A Guided Discussion for CS Students</title>
   <style>
-    :root {
-      --bg: #0b0c0f;
-      --ink: #e8ecf1;
-      --muted: #94a3b8;
-      --panel: #111318;
-      --border: #1e293b;
-      --accent: #60a5fa;
-      --ok: #34d399;
-      --warn: #f59e0b;
-      --paper: #ffffff;
-      --paper-ink: #0b0c0f;
+    :root{
+      --bg:#0b0c0f;--ink:#e8ecf1;--muted:#94a3b8;--panel:#111318;--border:#1e293b;--accent:#60a5fa;--ok:#34d399;--warn:#f59e0b;--paper:#ffffff;--paper-ink:#0b0c0f
     }
-
-    * {
-      box-sizing: border-box
-    }
-
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial
-    }
-
-    main {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 28px 16px 60px
-    }
-
-    header {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 18px
-    }
-
-    h1 {
-      font-size: clamp(22px, 3.6vw, 34px);
-      margin: 0
-    }
-
-    .lede {
-      color: var(--muted);
-      margin: 0 0 4px 0
-    }
-
-    .tools {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap
-    }
-
-    button,
-    .btn {
-      appearance: none;
-      border: 1px solid var(--border);
-      background: var(--panel);
-      color: var(--ink);
-      padding: 8px 12px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: 600;
-    }
-
-    button:hover,
-    .btn:hover {
-      border-color: #2b3b55
-    }
-
-    .pill {
-      font-size: .85rem;
-      padding: 4px 8px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      color: var(--muted)
-    }
-
-    .grid {
-      display: grid;
-      gap: 12px
-    }
-
-    .block {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      overflow: hidden;
-    }
-
-    .block header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .block h2 {
-      font-size: 1.05rem;
-      margin: 0
-    }
-
-    .status {
-      display: flex;
-      align-items: center;
-      gap: 8px
-    }
-
-    .status .tag {
-      font-size: .8rem;
-      padding: 2px 8px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      color: var(--muted)
-    }
-
-    .content {
-      display: none;
-      padding: 14px
-    }
-
-    .content.open {
-      display: block
-    }
-
-    .content p {
-      line-height: 1.65;
-      margin: .7rem 0
-    }
-
-    .content ol,
-    .content ul {
-      margin: .4rem 0 .4rem 1.25rem
-    }
-
-    details {
-      margin: .5rem 0
-    }
-
-    summary {
-      cursor: pointer;
-      color: var(--accent)
-    }
-
-    .prompt {
-      background: #0f1625;
-      border: 1px dashed #233148;
-      padding: 12px;
-      border-radius: 12px;
-      margin-top: 8px
-    }
-
-    .prompt h3 {
-      margin: .2rem 0 .2rem 0;
-      font-size: .95rem
-    }
-
-    .done {
-      color: var(--ok);
-      border-color: #254936
-    }
-
-    .muted {
-      color: var(--muted)
-    }
-
-    .divider {
-      height: 1px;
-      background: var(--border);
-      margin: 10px 0
-    }
-
-    footer {
-      margin-top: 22px;
-      color: var(--muted);
-      font-size: .9rem
-    }
-
-    .note {
-      font-size: .9rem;
-      color: var(--muted)
-    }
-
-    .flex {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap
-    }
-
-    .right {
-      margin-left: auto
-    }
-
-    @media (max-width:720px) {
-      .tools {
-        flex-direction: column;
-        align-items: flex-start
-      }
-    }
-
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial}
+    main{max-width:960px;margin:0 auto;padding:28px 16px 60px}
+    header{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+    h1{font-size:clamp(22px,3.6vw,34px);margin:0}
+    .lede{color:var(--muted);margin:0 0 4px 0}
+    .tools{display:flex;gap:8px;flex-wrap:wrap}
+    button,.btn{appearance:none;border:1px solid var(--border);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+    button:hover,.btn:hover{border-color:#2b3b55}
+    .pill{font-size:.85rem;padding:4px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
+    .grid{display:grid;gap:12px}
+    .block{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+    .block header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)}
+    .block h2{font-size:1.05rem;margin:0}
+    .status{display:flex;align-items:center;gap:8px}
+    .status .tag{font-size:.8rem;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
+    .tag.start{color:#9aa7bd}
+    .tag.progress{color:#cbd5e1;border-color:#334155}
+    .tag.done{color:var(--ok);border-color:#254936}
+    .content{display:none;padding:14px}
+    .content.open{display:block}
+    .content p{line-height:1.65;margin:.7rem 0}
+    .content ol,.content ul{margin:.4rem 0 .4rem 1.25rem}
+    details{margin:.5rem 0}
+    summary{cursor:pointer;color:var(--accent)}
+    .prompt{background:#0f1625;border:1px dashed #233148;padding:12px;border-radius:12px;margin-top:8px}
+    .prompt h3{margin:.2rem 0 .2rem 0;font-size:.95rem}
+    .muted{color:var(--muted)}
+    .divider{height:1px;background:var(--border);margin:10px 0}
+    footer{margin-top:22px;color:var(--muted);font-size:.9rem}
+    .note{font-size:.9rem;color:var(--muted)}
+    .flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .right{margin-left:auto}
+    .progress{height:6px;background:var(--border);border-radius:999px;overflow:hidden;margin:8px 0 4px}
+    .progress .bar{height:100%;width:0%;background:var(--accent);transition:width .25s linear}
+    :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media (max-width:720px){.tools{flex-direction:column;align-items:flex-start}}
+    @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto !important}}
     /* Print: show everything expanded, hide buttons */
-    @media print {
-      body {
-        background: #fff;
-        color: #000
-      }
-
-      .block,
-      .content {
-        background: #fff;
-        border-color: #ccc
-      }
-
-      button,
-      .btn,
-      .tools,
-      .right,
-      .pill {
-        display: none !important
-      }
-
-      .content {
-        display: block !important
-      }
-
-      a {
-        color: inherit;
-        text-decoration: none
-      }
+    @media print{
+      body{background:#fff;color:#000}
+      /* Force all text to print dark and backgrounds white */
+      *{color:#000 !important;background:#fff !important}
+      .block,.content{background:#fff !important;border-color:#000 !important}
+      .prompt{background:#fff !important;border-color:#000 !important}
+      .muted{color:#000 !important}
+      /* Hide interactive chrome */
+      button,.btn,.tools,.right,.pill,.progress{display:none !important}
+      /* Show all lesson content expanded */
+      .content{display:block !important}
+      a{color:#000 !important;text-decoration:none}
+      /* Prefer page breaks between blocks; avoid splitting a block across pages */
+      .block, .block header, .content, .prompt, details { break-inside: avoid; page-break-inside: avoid; }
+      h2, .prompt h3 { break-after: avoid; page-break-after: avoid; }
+      /* Provide a little spacing between blocks on print */
+      .block { margin-bottom: 12pt !important; }
+      /* Help typography avoid awkward single lines at page tops/bottoms */
+      * { orphans: 3; widows: 3; }
     }
   </style>
 </head>
-
 <body>
   <main>
     <header>
       <h1>Why Do Sudoku “By Hand”?</h1>
-      <p class="lede">Work through each section to understand.</p>
+      <p class="lede">Work through each section—notice how your thinking changes.</p>
       <div class="tools">
-        <span class="pill">Format: unfold each block in order</span>
+        <span class="pill">Format: unfold each step in order</span>
         <button id="resetProgress" title="Clear just this page’s progress">Reset Progress</button>
-        <a class="btn" href="#" onclick="window.print(); return false;">Print</a>
+        <a class="btn" href="#" onclick="window.print();return false;">Print</a>
+        <span class="right pill" id="progressLabel" aria-live="polite">Step 1 of 6</span>
       </div>
     </header>
 
-    <!-- Blocks -->
-    <section id="blocks" class="grid">
-      <!-- 1 Easy (web + hints) -->
-      <article class="block" data-step="1">
+    <div class="grid" role="list" aria-label="Sudoku attention lab">
+
+      <!-- Step 1 -->
+      <article class="block" data-step="1" role="listitem">
         <header>
-          <h2>Block 1 — Easy (web, with hints)</h2>
-          <div class="status"><span class="tag">locked</span><button class="toggle">Open</button></div>
+          <h2>Step 1 of 6 · Easy (web, with hints)</h2>
+          <div class="status"><span class="tag start" aria-live="polite">Start</span>
+            <button class="toggle" aria-expanded="false" aria-controls="content-1">Open</button></div>
         </header>
-        <div class="content">
-          <p>Open the Sudoku assistant with <strong>Help</strong> on. Play <em>one easy</em> puzzle &emdash; try to notice what you are thinking.</p>
+        <div class="content" id="content-1" hidden>
+          <p>Open <a href="index.html">Sudoku</a> with <strong>Help</strong> on. Play one <em>easy</em> game. Notice what your attention does.</p>
           <details>
-            <summary>Thinking about Thinking</summary>
+            <summary>Thinking about thinking</summary>
             <ul class="muted">
-              <li>Did the hints help you figure out the rules of Sudoku?</li>
+              <li>Did the hints teach you rules—or just move you forward?</li>
             </ul>
           </details>
           <div class="prompt">
             <h3>After you finish</h3>
             <ul>
-              <li>Did that feel like solving a puzzle, or like pushing buttons?</li>
-              <li>What was your mind up to? Where was your attention?</li>
+              <li>Did it feel like solving—or like pushing buttons?</li>
+              <li>Where was your attention most of the time?</li>
             </ul>
           </div>
           <div class="flex">
-            <button class="markDone">Mark Block 1 Complete</button>
-            <span class="note">This unlocks Block 2.</span>
+            <button class="markDone">Mark Step 1 Done</button>
+            <span class="note">This unlocks Step 2.</span>
             <span class="right pill">Goal: feel the “mindless mode.”</span>
           </div>
         </div>
       </article>
 
-      <!-- 2 Easy (paper, no hints) -->
-      <article class="block" data-step="2">
+      <!-- Step 2 -->
+      <article class="block" data-step="2" role="listitem">
         <header>
-          <h2>Block 2 — Easy (paper, no hints)</h2>
-          <div class="status"><span class="tag">locked</span><button class="toggle">Open</button></div>
+          <h2>Step 2 of 6 · Easy (paper, no hints)</h2>
+          <div class="status"><span class="tag start" aria-live="polite">Start</span>
+            <button class="toggle" aria-expanded="false" aria-controls="content-2">Open</button></div>
         </header>
-        <div class="content">
+        <div class="content" id="content-2" hidden>
           <p>Disable help, generate an <strong>easy</strong> puzzle, print it, and solve it with pencil.</p>
           <ul>
-            <li>Did you have to look up the rules?</li>
-            <li>Where is your attention?</li>
+            <li>Did you look up the rules?</li>
+            <li>Where is your attention now?</li>
           </ul>
           <div class="prompt">
-            <h3>Discussion prompts</h3>
+            <h3>Discussion prompt</h3>
             <ul>
-              <li>Describe the difference in understanding, attenion, and mental effort between the web and paper experience.</li>
+              <li>Describe the difference in understanding, <strong>attention</strong>, and effort between web and paper.</li>
+              <li>Name one moment you nearly guessed. Why did—or didn’t—you stop?</li>
             </ul>
           </div>
           <div class="flex">
-            <button class="markDone">Mark Block 2 Complete</button>
-            <span class="note">This unlocks Block 3.</span>
+            <button class="markDone">Mark Step 2 Done</button>
+            <span class="note">This unlocks Step 3.</span>
             <span class="right pill">Goal: feel the “workout mode.”</span>
           </div>
         </div>
       </article>
 
-      <!-- 3 Easy (web again, with hints) -->
-      <article class="block" data-step="3">
+      <!-- Step 3 -->
+      <article class="block" data-step="3" role="listitem">
         <header>
-          <h2>Block 3 — Easy (web again, with hints)</h2>
-          <div class="status"><span class="tag">locked</span><button class="toggle">Open</button></div>
+          <h2>Step 3 of 6 · Easy (web again, with hints)</h2>
+          <div class="status"><span class="tag start" aria-live="polite">Start</span>
+            <button class="toggle" aria-expanded="false" aria-controls="content-3">Open</button></div>
         </header>
-        <div class="content">
+        <div class="content" id="content-3" hidden>
           <p>Play <em>another easy</em> puzzle online with Help on.</p>
           <div class="prompt">
             <h3>What changed?</h3>
             <ul>
-              <li>What do you notice now that you didn’t notice the first easy web try in Block 1?</li>
-              <li>Do you still click mindlessly, or do you think about why one option works and others do not?</li>
+              <li>List two mechanics (e.g., scanning singles, box/row/column interactions) you noticed now that you missed in Step 1.</li>
+              <li>Are you still clicking mindlessly—or explaining to yourself why one option works and others do not?</li>
             </ul>
           </div>
           <div class="flex">
-            <button class="markDone">Mark Block 3 Complete</button>
-            <span class="note">This unlocks Block 4.</span>
+            <button class="markDone">Mark Step 3 Done</button>
+            <span class="note">This unlocks Step 4.</span>
             <span class="right pill">Goal: experience the contrast.</span>
           </div>
         </div>
       </article>
 
-      <!-- 4 Medium (web) -->
-      <article class="block" data-step="4">
+      <!-- Step 4 -->
+      <article class="block" data-step="4" role="listitem">
         <header>
-          <h2>Block 4 — Medium (web, with hints)</h2>
-          <div class="status"><span class="tag">locked</span><button class="toggle">Open</button></div>
+          <h2>Step 4 of 6 · Medium (web, with hints)</h2>
+          <div class="status"><span class="tag start" aria-live="polite">Start</span>
+            <button class="toggle" aria-expanded="false" aria-controls="content-4">Open</button></div>
         </header>
-        <div class="content">
-          <p>Play <em>one medium</em> puzzle online.</p>
+        <div class="content" id="content-4" hidden>
+          <p>Play one <em>medium</em> puzzle online.</p>
           <div class="prompt">
             <h3>Discussion prompts</h3>
             <ul>
-              <li>What were you noticing now?</li>
+              <li>What were you noticing this time? Where did hints help—and where did they ceiling out?</li>
             </ul>
           </div>
           <div class="flex">
-            <button class="markDone">Mark Block 4 Complete</button>
-            <span class="note">This unlocks Block 5.</span>
+            <button class="markDone">Mark Step 4 Done</button>
+            <span class="note">This unlocks Step 5.</span>
             <span class="right pill">Goal: see the ceiling of assistance.</span>
           </div>
         </div>
       </article>
 
-      <!-- 5 Medium (paper) -->
-      <article class="block" data-step="5">
+      <!-- Step 5 -->
+      <article class="block" data-step="5" role="listitem">
         <header>
-          <h2>Block 5 — Medium (paper, no hints)</h2>
-          <div class="status"><span class="tag">locked</span><button class="toggle">Open</button></div>
+          <h2>Step 5 of 6 · Medium (paper, no hints)</h2>
+          <div class="status"><span class="tag start" aria-live="polite">Start</span>
+            <button class="toggle" aria-expanded="false" aria-controls="content-5">Open</button></div>
         </header>
-        <div class="content">
-          <p>Generate and print a <strong>medium</strong> puzzle. Solve it by hand. No tool assistance.</p>
+        <div class="content" id="content-5" hidden>
+          <p>Generate and print a <strong>medium</strong> puzzle. Solve it by hand. No assistance tools.</p>
           <div class="prompt">
             <h3>Debrief</h3>
             <ul>
-              <li>Now how is the mental load?</li>
-              <li>Were you disrupted by your phone or other distractions in mid-thought? How expensive was that?</li>
+              <li>How heavy was the mental load?</li>
+              <li>Were you disrupted by your phone or other distractions in mid-thought? Estimate your “context rebuild” cost per distraction and total it.</li>
             </ul>
           </div>
           <div class="flex">
-            <button class="markDone">Mark Block 5 Complete</button>
-            <span class="note">Unlocks the wrap-up blocks below.</span>
-            <span class="right pill">Goal: feel the full “manual” workout.</span>
+            <button class="markDone">Mark Step 5 Done</button>
+            <span class="note">Unlocks the lesson.</span>
+            <span class="right pill">Goal: feel the full manual workout.</span>
           </div>
         </div>
       </article>
 
-      <!-- 6 Brain Gyms: Creativity -->
-      <article class="block" data-step="6">
+      <!-- Step 6 (Lesson) -->
+      <article class="block" data-step="6" role="listitem">
         <header>
-          <h2>The Lesson</h2>
-          <div class="status"><span class="tag">locked</span><button class="toggle">Open</button></div>
+          <h2>Step 6 of 6 · The Lesson</h2>
+          <div class="status"><span class="tag start" aria-live="polite">Start</span>
+            <button class="toggle" aria-expanded="false" aria-controls="content-6">Open</button></div>
         </header>
-        <div class="content">
+        <div class="content" id="content-6" hidden>
           <div class="prompt">
-            <p>To stay physically fit, you must at least sometimes use the stairs even when there is an
-              elevator. Or you will eventually be unable to use the stairs with many other negative consequences.</p>
-            <p>Computers are elevators for your brain. But if that's all you do, your brain will be unfit. <strong>LLM's
-                make this especially true. They are fantastic for efficiency, but dependence leaves your mind unfit. You need to sometimes choose to use the mental stairs.</strong></p>
-            <p>Sudoku is a push-up for your attention and logic brain. For it to work, <strong>you have to do the push up.</strong>
-              Watching a hockey game is not exercise.
-            </p>
-
-            <p>Here are other parts of your brain you should think about exercising: </p>
+            <p>Computers are elevators for your brain; useful, but if you never take the stairs, you go soft. LLMs raise the stakes: great tools, bad crutches. A paper Sudoku is a push-up for attention and logic. Do one; do it with a friend for social intelligence; invent twists for creativity. Your attention is under constant assault—protect it, train it, use it. Small practices compound; they shape how you think.</p>
+          </div>
+          <details>
+            <summary>Other “life games” that add up</summary>
             <ul>
-              <li>
-                Creativity
-              </li>
-              <li>
-                Social intelligence
-              </li>
-              <li>
-                Attention (again for Emphasis)
-              </li>
+              <li><strong>Disc golf or pickup sports:</strong> perception, strategy, social rhythm.</li>
+              <li><strong>Cooking together:</strong> planning, timing, feedback loops, shared attention.</li>
+              <li><strong>Music practice or ensemble:</strong> deliberate practice + coordination.</li>
+              <li><strong>Climbing/bouldering beta sessions:</strong> problem decomposition, focus, trust.</li>
+              <li><strong>Make & demo nights:</strong> short sprints + teach what you built.</li>
             </ul>
-
-            <p>These are all parts of a healthy life, but the last one is crucial. The modern world is a fine-tuned
-              assult
-              on your attention, which it actively works to erode. If you don't exercise your attention, nothing else
-              really matters.</p>
-            <p>Sudoku on paper exercises attention and logic. Work one out with a friend to build social intelligence.
-              Thinking of and doing other exercises for you and your companion and now you are working on creativity.
-            </p>
-
-            <p>These habits add up—over time; they shape how you think.</p>
-
-          </div>
+          </details>
           <div class="flex">
-            <button class="markDone">Mark Creativity Block Complete</button>
-            <span class="note">This unlocks your healthy mind.</span>
+            <button class="markDone">Mark Lesson Done</button>
+            <span class="note">You’ve unlocked your healthy-mind toolkit.</span>
           </div>
-
         </div>
       </article>
-      <footer>
-        <div class="divider"></div>
-      </footer>
+    </div>
+
+    <footer>
+      <div class="divider"></div>
+      <p class="note">Careful thinking and attention are trainable skills.</p>
+    </footer>
   </main>
 
+  <div aria-live="polite" class="sr-only" id="a11yStatus"></div>
+
   <script>
-    // Simple sequential gating with localStorage
-    (function () {
-      const blocks = Array.from(document.querySelectorAll('.block'));
-      const storeKey = 'why_progress_v1';
-      let progress = JSON.parse(localStorage.getItem(storeKey) || '{}');
+  (function(){
+    const blocks = Array.from(document.querySelectorAll('.block'));
+    const storeKey = 'why_progress_v2';
+    const a11y = document.getElementById('a11yStatus');
+    const progressBar = document.getElementById('progressBar');
+    const progressLabel = document.getElementById('progressLabel');
 
-      function setStatus(el, text, done) {
-        const tag = el.querySelector('.status .tag');
-        tag.textContent = done ? 'done' : (text || 'locked');
-        tag.classList.toggle('done', !!done);
-      }
-      function openContent(el) {
-        el.querySelector('.content').classList.add('open');
-        const tag = el.querySelector('.status .tag');
-        if (tag.textContent === 'locked') tag.textContent = 'open';
-      }
-      function closeContent(el) {
-        el.querySelector('.content').classList.remove('open');
-        const tag = el.querySelector('.status .tag');
-        if (tag.textContent !== 'done') tag.textContent = 'locked';
-      }
-      function unlock(step) {
-        const el = document.querySelector('.block[data-step=\"' + step + '\"]');
-        if (el) {
-          const tag = el.querySelector('.status .tag');
-          if (tag.textContent === 'locked') tag.textContent = 'open';
-        }
-      }
-      function isDone(step) { return !!progress['step' + step]; }
-
-      blocks.forEach((el) => {
-        const step = Number(el.dataset.step);
-        const btn = el.querySelector('.toggle');
-        const doneBtn = el.querySelector('.markDone');
-        const content = el.querySelector('.content');
-
-        setStatus(el, 'locked', isDone(step));
-        if (isDone(step)) { setStatus(el, null, true); content.classList.add('open'); }
-
-        btn.addEventListener('click', () => {
-          if (content.classList.contains('open')) closeContent(el); else openContent(el);
-        });
-
-        if (doneBtn) {
-          doneBtn.addEventListener('click', () => {
-            progress['step' + step] = true;
-            localStorage.setItem(storeKey, JSON.stringify(progress));
-            setStatus(el, null, true);
-            content.classList.add('open');
-            const next = step + 1;
-            unlock(next);
-            const nextEl = document.querySelector('.block[data-step=\"' + next + '\"]');
-            if (nextEl) {
-              openContent(nextEl);
-              nextEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-          });
-        }
-      });
-
-      if (Object.keys(progress).length === 0) {
-        blocks.forEach((el) => { setStatus(el, 'locked', false); closeContent(el); });
-        const first = document.querySelector('.block[data-step=\"1\"]');
-        if (first) { openContent(first); setStatus(first, 'open', false); }
-      } else {
-        for (let i = 1; i <= blocks.length; i++) {
-          if (!isDone(i)) { unlock(i); break; }
-        }
-      }
-
-      document.getElementById('resetProgress').addEventListener('click', () => {
-        if (confirm('Reset progress for this page?')) {
-          localStorage.removeItem(storeKey);
-          location.reload();
-        }
-      });
+    // localStorage guard
+    const storage = (function(){
+      try { const x='__t'; localStorage.setItem(x,'1'); localStorage.removeItem(x); return localStorage; } catch(e){ return {getItem:()=>null,setItem:()=>{},removeItem:()=>{}}; }
     })();
+
+    let progress = JSON.parse(storage.getItem(storeKey) || '{}');
+
+    function setTag(el, state){
+      const tag = el.querySelector('.status .tag');
+      tag.classList.remove('start','progress','done');
+      tag.classList.add(state);
+      tag.textContent = state === 'done' ? 'Done' : state === 'progress' ? 'In progress' : 'Start';
+    }
+
+    function openContent(el){
+      const content = el.querySelector('.content');
+      content.hidden = false;
+      el.querySelector('.toggle').setAttribute('aria-expanded','true');
+      content.classList.add('open');
+      el.querySelector('.toggle').textContent = 'Close';
+      setTag(el,'progress');
+    }
+
+    function closeContent(el){
+      const content = el.querySelector('.content');
+      content.hidden = true;
+      el.querySelector('.toggle').setAttribute('aria-expanded','false');
+      content.classList.remove('open');
+      el.querySelector('.toggle').textContent = 'Open';
+      if(!isDone(stepOf(el))) setTag(el,'start');
+    }
+
+    function stepOf(el){ return Number(el.dataset.step); }
+    function isDone(step){ return !!progress['step'+step]; }
+
+    function unlock(step){
+      const el = document.querySelector('.block[data-step="'+step+'"]');
+      if(el){ setTag(el,'start'); el.querySelector('.toggle').disabled = false; }
+    }
+
+    function updateProgress(){
+      const total = blocks.length;
+      const done = Object.keys(progress).filter(k=>progress[k]).length;
+      const pct = Math.round((done/total)*100);
+      progressBar.style.width = pct+'%';
+      progressLabel.textContent = `Step ${Math.min(done+1,total)} of ${total}`;
+    }
+
+    // Wire up blocks
+    blocks.forEach((el)=>{
+      const step = stepOf(el);
+      const btn = el.querySelector('.toggle');
+      const doneBtn = el.querySelector('.markDone');
+      const content = el.querySelector('.content');
+
+      // initialize
+      if(isDone(step)){
+        setTag(el,'done');
+        content.hidden = false; content.classList.add('open');
+        el.querySelector('.toggle').setAttribute('aria-expanded','true');
+        btn.textContent = 'Close';
+      } else {
+        setTag(el, step===1 ? 'progress' : 'start');
+        if(step===1){
+          content.hidden = false; content.classList.add('open'); el.querySelector('.toggle').setAttribute('aria-expanded','true');
+          btn.textContent = 'Close';
+        } else {
+          btn.textContent = 'Open';
+        }
+      }
+
+      btn.addEventListener('click',()=>{
+        const open = content.classList.contains('open');
+        if(open){
+          content.classList.remove('open'); content.hidden = true; btn.setAttribute('aria-expanded','false');
+          btn.textContent = 'Open';
+          if(!isDone(step)) setTag(el,'start');
+        } else {
+          content.classList.add('open'); content.hidden = false; btn.setAttribute('aria-expanded','true');
+          btn.textContent = 'Close';
+          setTag(el,'progress');
+        }
+      });
+
+      if(doneBtn){
+        doneBtn.addEventListener('click',()=>{
+          progress['step'+step]=true;
+          storage.setItem(storeKey, JSON.stringify(progress));
+          setTag(el,'done');
+          content.classList.add('open'); content.hidden=false;
+          btn.textContent = 'Close';
+          const next = step+1; unlock(next);
+          const nextEl = document.querySelector('.block[data-step="'+next+'"]');
+          if(nextEl){
+            if(!nextEl.querySelector('.content').classList.contains('open')){
+              nextEl.querySelector('.toggle').focus({preventScroll:true});
+              nextEl.scrollIntoView({behavior:'smooth', block:'start'});
+              openContent(nextEl);
+            }
+          }
+          a11y.textContent = `Step ${step} marked done. Step ${next} unlocked.`;
+          updateProgress();
+        });
+      }
+    });
+
+    // Initialize progress bar
+    updateProgress();
+
+    // Reset
+    const resetBtn = document.getElementById('resetProgress');
+    resetBtn.addEventListener('click',()=>{
+      if(confirm('Reset progress for this page?')){
+        storage.removeItem(storeKey);
+        location.reload();
+      }
+    });
+
+  })();
   </script>
 </body>
-
 </html>
