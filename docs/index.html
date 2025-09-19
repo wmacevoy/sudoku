@@ -1,16 +1,12 @@
 <!DOCTYPE html>
 
 <!--
-  Sudoku Assistant — Developer Edition (readability pass)
+  Sudoku
   =======================================================
   Purpose:
     This single-page app helps humans *understand* Sudoku decisions.
     It shows candidate pencil-marks, highlights hidden singles, and draws
     simple lines/boxes that explain *why* a placement or elimination happens.
-
-  Non-behavioral edits in this file:
-    • Added section banners and JSDoc-style comments.
-    • No renames, no logic changes, no new tags – behavior is identical.
 
   Key Concepts:
     • board[r][c] in {0..9} (0=empty)
@@ -30,7 +26,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sudoku — learn here, then exercise your logic mind offline!</title>
+  <title>Sudoku</title>
   <!-- Visuals for screen + print; grid and overlay dimensions are JS-aligned. -->
 <style>
     :root{
@@ -97,9 +93,8 @@
     .stack-row{display:flex; align-items:center; justify-content:space-between; gap:8px}
     .stack-item input.note{width:100%; padding:7px 9px; border-radius:8px; border:1px solid #23314a; background:#0c1320; color:#dbe7f3}
 
-    .options{display:flex; flex-direction:column; gap:8px; background:var(--panel); border-radius:14px; padding:12px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 1px #0f172a}
-
-    .io{display:flex; flex-direction:column; gap:8px}
+    .share-pane{display:flex; flex-direction:column; gap:8px}
+    .share-actions{display:flex; flex-wrap:wrap; gap:8px}
     textarea{width:100%; min-height:360px; resize:vertical; padding:10px; background:#0c1120; color:#dbe7f3; border:1px solid #14213a; border-radius:10px; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;}
 
     /* SVG overlay sits exactly over the GRID; JS sets its size/position to match grid */
@@ -108,7 +103,7 @@
     @media print{
       @page{ size: letter portrait; margin: 0.5in; }
       body{background:#fff; color:#000}
-      header, aside, .toolbar, .legend, .io, .options{display:none !important}
+      header, aside, .toolbar, .legend, .share-pane{display:none !important}
       .wrap{max-width:none; padding:0; display:block}
       .board{width:95% !important; height:auto; aspect-ratio:1/1; background:#fff; box-shadow:none; padding:0; margin:0 auto}
       .grid .cell{border-color:#000}
@@ -135,23 +130,18 @@
 </head>
 <body>
   <header>
-    <h1>Sudoku — learn here, then exercise your logic mind offline!</h1>
+    <h1>Sudoku</h1>
     <div class="toolbar">
-      <button id="btn-reset" class="warn">Reset</button>
-      <button id="btn-apply-singles" class="primary">Apply Singles</button>
       <label class="cb"><input type="checkbox" id="helpToggle" checked> Help Me</label>
+      <button id="btn-print">Print</button>
+      <button id="btn-why" title="Open the guided discussion (why.html)">Why?</button>
+      <button id="btn-new">New Puzzle</button>
       <select id="sel-diff">
         <option value="easy">Easy</option>
         <option value="medium" selected>Medium</option>
         <option value="hard">Hard</option>
       </select>
-      <button id="btn-new">New Puzzle</button>
-      <button id="btn-print">Print</button>
-      <button id="btn-why" title="Open the guided discussion (why.html)">Why?</button>
-      <button id="btn-undo">Undo Choice</button>
-      <button id="btn-export">Export</button>
-      <button id="btn-share">Share</button>
-      <button id="btn-logcsv">Export Log</button>
+      <button id="btn-reset" class="warn">Reset</button>
     </div>
   </header>
   <!-- Layout: board (left) + controls/I-O (right) -->
@@ -169,21 +159,19 @@
       </div>
     </section>
     <aside class="controls">
+      <h2>Share</h2>
+      <div class="share-pane">
+        <div class="share-actions">
+          <button id="btn-copy-link">Copy Link</button>
+          <button id="btn-copy-plaintext">Copy Plaintext</button>
+          <button id="btn-import-share">Import</button>
+        </div>
+        <textarea id="share-text" rows="18"></textarea>
+      </div>
+      <h2>Undo Stack</h2>
+      <div class="stack" id="stack"></div>
       <h2>Reasoning</h2>
       <div id="legend" class="legend">Hover or tap a pencil mark to see the reasoning. Double‑click or double‑tap to place. Keys: arrows/hjkl to move, 1–9 to place, . or 0 to clear, U undo, P print, N new, S share.</div>
-      <div class="stack" id="stack"></div>
-      <div class="options">
-        <label class="cb"><input type="checkbox" id="opt-uniques" checked> Show row/col lines & box highlight for uniqueness</label>
-        <label class="cb"><input type="checkbox" id="opt-hidden" checked> Highlight hidden singles in pencil marks</label>
-        <label class="cb"><input type="checkbox" id="opt-autosave" checked> Auto‑save to this browser</label>
-      </div>
-      <div class="io">
-        <div>
-          <button id="btn-import">Import ASCII</button>
-          <button id="btn-clear">Clear</button>
-        </div>
-        <textarea id="io" rows="18"$1></textarea>
-      </div>
     </aside>
   </main>
   <section class="print-qr" aria-label="QR code to play online">
@@ -219,13 +207,12 @@
   const overlaySvg=document.getElementById('overlay');
   const stackEl=document.getElementById('stack');
   const legendEl=document.getElementById('legend');
-  const ioEl=document.getElementById('io');
+  const shareTextEl=document.getElementById('share-text');
+  const copyLinkBtn=document.getElementById('btn-copy-link');
+  const copyPlainBtn=document.getElementById('btn-copy-plaintext');
+  const importShareBtn=document.getElementById('btn-import-share');
   const helpToggle = document.getElementById('helpToggle');
   const selDiff = document.getElementById('sel-diff');
-  const optUniques = document.getElementById('opt-uniques');
-  const optHidden = document.getElementById('opt-hidden');
-  const optAutosave = document.getElementById('opt-autosave');
-
   let showHelp = helpToggle.checked;
   const DEFAULT_LEGEND = 'Hover or tap a pencil mark to see the reasoning. Double-click or double-tap to place.';
 
@@ -260,12 +247,12 @@
  * Full reset to empty board; clears stack; re-renders; updates ASCII; autosaves.
  */
 
-  function reset(){ board = make2D(N,N,0); candidates = make2D(N,N,() => new Set(DIGITS)); stack=[]; initialBoard = cloneBoard(board); render(); updateIOFromBoard(); log({type:'reset'}); scheduleSave(); }
+  function reset(){ board = make2D(N,N,0); candidates = make2D(N,N,() => new Set(DIGITS)); stack=[]; initialBoard = cloneBoard(board); render(); updateShareText(); log({type:'reset'}); scheduleSave(); }
 /**
  * clearBoard()
  * Clears grid & candidates (keeps UI selections). Useful before import.
  */
-  function clearBoard(){ board = make2D(N,N,0); candidates = make2D(N,N,() => new Set(DIGITS)); stack=[]; render(); log({type:'clear'}); scheduleSave(); }
+  function clearBoard(){ board = make2D(N,N,0); candidates = make2D(N,N,() => new Set(DIGITS)); stack=[]; render(); updateShareText(); log({type:'clear'}); scheduleSave(); }
 
   // === ASCII helpers (grid only) ===
 /**
@@ -327,10 +314,6 @@
         if(mode==='grid') gridBlock.push(ln); else if(mode==='moves') moveBlock.push(ln);
       }
       const finalGrid = parseGridFromLines(gridBlock);
-      const moves = moveBlock.map(parseMoveLine).filter(Boolean);
-      const init = rewindToInitial(finalGrid, moves);
-      loadBoard(init);
-      for(const m of moves){ place(m.r, m.c, m.val, true, m.note||''); }
       return cloneBoard(finalGrid);
     }
     return parseGridFromLines(text.split(/\r?\n/));
@@ -360,12 +343,6 @@
     const [_, r,c,prev,val,note] = m;
     return { r: (+r)-1, c:(+c)-1, prev:+prev, val:+val, note: note? note.trim(): '' };
   }
-/** rewindToInitial(finalGrid, moves[]) → initialGrid */
-  function rewindToInitial(finalGrid, moves){
-    const b = cloneBoard(finalGrid);
-    for(let i=moves.length-1; i>=0; i--){ const mv = moves[i]; b[mv.r][mv.c] = mv.prev; }
-    return b;
-  }
 /**
  * loadBoard(b)
  * Replace board & recompute candidates by elimination of placed values.
@@ -374,10 +351,10 @@
   function loadBoard(b){ board = cloneBoard(b); initialBoard = cloneBoard(b);
     candidates = make2D(N,N,() => new Set(DIGITS));
     for(let r=0;r<9;r++) for(let c=0;c<9;c++) if(board[r][c]) eliminate(r,c,board[r][c]);
-    stack=[]; render(); }
-/** updateIOFromBoard() — keep the textarea synced to the current board only */
+    stack=[]; render(); updateShareText(); }
+/** updateShareText() — keep the Share textarea synced to the current board only */
 
-  function updateIOFromBoard(){ ioEl.value = toASCII(false); }
+  function updateShareText(){ shareTextEl.value = toASCII(false); }
 /** Fisher–Yates shuffle in-place; returns the same array for chaining. */
 
   function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
@@ -410,6 +387,7 @@
     }
     if(push) stack.push({r,c,prev, val, prevCands, note});
     render();
+    updateShareText();
     log({type:'place', r, c, prev, val, note});
     scheduleSave();
   }
@@ -442,7 +420,7 @@ function revertTo(idx){
   // Clear overlay and legend
   clearOverlay();
   setLegend('');
-  render(); updateIOFromBoard();
+  render(); updateShareText();
 
   log({type:'undo', toIndex: idx});
   scheduleSave();
@@ -499,7 +477,7 @@ function revertTo(idx){
     const boxIndex = Math.floor(r/3)*3 + Math.floor(c/3);
     const boxCount = counts.box[boxIndex][d];
 
-    if(optUniques.checked){
+    if(showHelp){
       const W = overlaySvg.viewBox.baseVal.width || overlaySvg.clientWidth;
       const H = overlaySvg.viewBox.baseVal.height || overlaySvg.clientHeight;
       if(rowCount===1){ drawLine(0, sel.y, W, sel.y, {both:true}); }
@@ -598,7 +576,7 @@ function revertTo(idx){
     let clues = 81;
     for(const idx of cells){ if(clues<=targetClues) break; const r=Math.floor(idx/9), c=idx%9; const save=b[r][c]; b[r][c]=0; const copy=cloneBoard(b); if(countSolutions(copy,2)!==1){ b[r][c]=save; } else { clues--; } }
     loadBoard(b);
-    updateIOFromBoard();
+    updateShareText();
     log({type:'new', difficulty: diff});
     scheduleSave();
   }
@@ -624,7 +602,7 @@ function revertTo(idx){
         const val=board[r][c];
         if(val!==0){
           cell.classList.add('filled'); const v=document.createElement('div'); v.className='value'; v.textContent=val; cell.appendChild(v);
-          cell.addEventListener('click', ()=>{ selected={r,c}; place(r,c,0,true); updateIOFromBoard(); });
+          cell.addEventListener('click', ()=>{ selected={r,c}; place(r,c,0,true); updateShareText(); });
         } else {
           cell.addEventListener('click', ()=>{ selected={r,c}; render(); });
           if(showHelp){
@@ -633,7 +611,7 @@ function revertTo(idx){
               const mini=document.createElement('div'); mini.className='cand'; mini.textContent=d;
               if(!can.has(d)) mini.classList.add('disabled');
               const b = Math.floor(r/3)*3 + Math.floor(c/3);
-              const isHidden = optHidden.checked && can.has(d) && (counts.row[r][d]===1 || counts.col[c][d]===1 || counts.box[b][d]===1);
+              const isHidden = showHelp && can.has(d) && (counts.row[r][d]===1 || counts.col[c][d]===1 || counts.box[b][d]===1);
               if(can.size===1 && can.has(d)) mini.classList.add('only');
               if(isHidden) mini.classList.add('hidden-single');
               // Desktop hover for explanation
@@ -642,7 +620,7 @@ function revertTo(idx){
               // Desktop single click: show explanation (do not place)
               mini.addEventListener('click', (e)=>{ e.stopPropagation(); showHover(r,c,d); });
               // Desktop double click: place if allowed
-              mini.addEventListener('dblclick', (e)=>{ e.preventDefault(); e.stopPropagation(); if(!can.has(d)) { showHover(r,c,d); return; } place(r,c,d,true); updateIOFromBoard(); });
+              mini.addEventListener('dblclick', (e)=>{ e.preventDefault(); e.stopPropagation(); if(!can.has(d)) { showHover(r,c,d); return; } place(r,c,d,true); updateShareText(); });
               // Touch/pen: single tap shows explanation; double-tap places
               mini.addEventListener('pointerdown', (e)=>{
                 if(e.pointerType==='touch' || e.pointerType==='pen'){
@@ -653,7 +631,7 @@ function revertTo(idx){
                   const threshold = 300;
                   if(now - last < threshold){
                     mini._lastTap = 0;
-                    if(can.has(d)) { place(r,c,d,true); updateIOFromBoard(); }
+                    if(can.has(d)) { place(r,c,d,true); updateShareText(); }
                     else { showHover(r,c,d); }
                   } else {
                     mini._lastTap = now;
@@ -715,23 +693,44 @@ function revertTo(idx){
     overlaySvg.appendChild(rect);
   }
 
-  // Import/Export buttons
-  document.getElementById('btn-import').addEventListener('click', ()=>{ try{ const finalB=fromASCII(ioEl.value); updateIOFromBoard(); log({type:'import'}); scheduleSave(); }catch(e){ alert(e.message); } });
-  document.getElementById('btn-clear').addEventListener('click', ()=> { ioEl.value=''; clearBoard(); });
+  // Share & toolbar buttons
+  copyLinkBtn.addEventListener('click', ()=>{
+    const link = createShareLink();
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(link).then(()=> setLegend('Share link copied to clipboard.'), ()=>{
+        setLegend('Share link ready: ' + link);
+        window.prompt('Copy this share link:', link);
+      });
+    } else {
+      setLegend('Share link ready: ' + link);
+      window.prompt('Copy this share link:', link);
+    }
+  });
+  copyPlainBtn.addEventListener('click', ()=>{
+    const ascii = toASCII(false);
+    shareTextEl.value = ascii;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(ascii).then(()=> setLegend('Plaintext copied to clipboard.'), ()=> setLegend('Plaintext ready in the Share box.'));
+    } else {
+      setLegend('Plaintext ready in the Share box.');
+    }
+  });
+  importShareBtn.addEventListener('click', ()=>{
+    const raw = shareTextEl.value;
+    if(!raw.trim()){ alert('Share box is empty.'); return; }
+    if(handleShareImport(raw)){
+      log({type:'import'});
+      scheduleSave();
+    } else {
+      alert('Could not find a Sudoku share link or grid to import.');
+    }
+  });
   document.getElementById('btn-new').addEventListener('click', ()=> newPuzzle(selDiff.value));
   document.getElementById('btn-print').addEventListener('click', ()=>{ document.body.classList.toggle('print-hints', helpToggle.checked); window.print(); });
   document.getElementById('btn-why').addEventListener('click', ()=>{ window.open('why.html','_blank','noopener'); });
-  document.getElementById('btn-share').addEventListener('click', ()=>{ const link=createShareLink(); navigator.clipboard && navigator.clipboard.writeText(link); setLegend('Share link copied to clipboard.'); });
-  document.getElementById('btn-logcsv').addEventListener('click', exportLogCSV);
   helpToggle.addEventListener('change', ()=> { showHelp = helpToggle.checked; render(); scheduleSave(); });
   selDiff.addEventListener('change', scheduleSave);
   document.getElementById('btn-reset').addEventListener('click', reset);
-  document.getElementById('btn-apply-singles').addEventListener('click', ()=>{
-    let applied=false; for(let r=0;r<9;r++) for(let c=0;c<9;c++){ if(board[r][c]===0 && candidates[r][c].size===1){ const d=[...candidates[r][c]][0]; place(r,c,d,true); applied=true; } }
-    if(applied){ updateIOFromBoard(); } else { alert('No singles to apply.'); }
-  });
-  document.getElementById('btn-undo').addEventListener('click', ()=>{ if(stack.length){ revertTo(stack.length-1); } });
-  document.getElementById('btn-export').addEventListener('click', ()=>{ const txt=toASCII(true); ioEl.value=txt; const blob=new Blob([txt],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='sudoku-with-moves.txt'; a.click(); URL.revokeObjectURL(a.href); });
 
   // Keep overlay aligned on resize/zoom
   const ro = new ResizeObserver(()=>{ syncOverlayToGrid(); });
@@ -754,40 +753,65 @@ function revertTo(idx){
     else if(k==='u' || k==='U'){ if(stack.length) revertTo(stack.length-1); e.preventDefault(); }
     else if(k==='p' || k==='P'){ document.body.classList.toggle('print-hints', helpToggle.checked); window.print(); e.preventDefault(); }
     else if(k==='n' || k==='N'){ newPuzzle(selDiff.value); e.preventDefault(); }
-    else if(k==='s' || k==='S'){ const link=createShareLink(); navigator.clipboard && navigator.clipboard.writeText(link); setLegend('Share link copied to clipboard.'); e.preventDefault(); }
+    else if(k==='s' || k==='S'){ copyLinkBtn.click(); e.preventDefault(); }
     else if(k==='?'){ alert('Keys: arrows/hjkl move, 1–9 place, . or 0 clear, U undo, P print, N new, S share.'); }
   });
 
   // Logging
 /** log(evt) — append to action log */
   function log(evt){ actionLog.push({ts: nowISO(), ...evt}); }
-/** exportLogCSV() — download the action log as CSV */
-  function exportLogCSV(){
-    const rows = [['timestamp','type','r','c','prev','val','note','difficulty']];
-    for(const e of actionLog){ rows.push([e.ts,e.type,e.r??'',e.c??'',e.prev??'',e.val??'', quoteCSV(e.note||''), e.difficulty||'']); }
-    const csv = rows.map(r=> r.map(v=> typeof v==='string' && v.indexOf(',')>=0? `"${String(v).replace(/"/g,'""')}"` : String(v)).join(',')).join('\n');
-    const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='sudoku-log.csv'; a.click(); URL.revokeObjectURL(a.href);
-  }
-/** quoteCSV(s) — minimal newline→space sanitizer for CSV fields */
-  function quoteCSV(s){ return s.replace(/\n/g,' '); }
 
   // Autosave + share
 /** currentState() — minimal JSON state for autosave/share */
   function currentState(){ return { initial: initialBoard||make2DZero(), moves: stack.map(({r,c,prev,val,note})=>({r,c,prev,val,note})), help: showHelp, diff: selDiff.value }; }
 /** scheduleSave() — debounce localStorage writes (200ms) */
-  function scheduleSave(){ if(!optAutosave.checked) return; clearTimeout(saveT); saveT = setTimeout(saveState, 200); }
+  function scheduleSave(){ clearTimeout(saveT); saveT = setTimeout(saveState, 200); }
 /** saveState() — persist current state (best-effort) */
   function saveState(){ try{ localStorage.setItem('sudoku_state_v1', JSON.stringify(currentState())); }catch(_){} }
 /**
  * restoreFromLocal() → boolean
  * Load prior session from localStorage; applies moves and options when found.
  */
-  function restoreFromLocal(){ try{ const s=localStorage.getItem('sudoku_state_v1'); if(!s) return false; const st=JSON.parse(s); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateIOFromBoard(); return true; }catch(_){ return false; } }
+  function restoreFromLocal(){ try{ const s=localStorage.getItem('sudoku_state_v1'); if(!s) return false; const st=JSON.parse(s); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateShareText(); return true; }catch(_){ return false; } }
 /** base64Encode(str) — UTF-8 safe btoa wrapper */
 
   function base64Encode(str){ return btoa(String.fromCharCode(...new TextEncoder().encode(str))); }
 /** base64Decode(b64) — UTF-8 safe atob wrapper */
   function base64Decode(b64){ return new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0))); }
+/** handleShareImport(raw) — decode share link or ASCII from textarea */
+  function handleShareImport(raw){
+    const linkMatch = raw.match(/#s=([A-Za-z0-9+/=]+)/);
+    if(linkMatch){
+      try{
+        const payload = JSON.parse(base64Decode(linkMatch[1]));
+        if(applyShareState(payload)) return true;
+      }catch(_){ /* fall through to ASCII parse */ }
+    }
+    try{
+      const grid = fromASCII(raw);
+      if(grid){ loadBoard(grid); return true; }
+    }catch(_){ return false; }
+    return false;
+  }
+/** applyShareState(state) — load puzzle from shared JSON payload */
+  function applyShareState(state){
+    if(!state) return false;
+    const base = Array.isArray(state.initial) ? state.initial : make2DZero();
+    const final = cloneBoard(base);
+    if(Array.isArray(state.moves)){
+      for(const mv of state.moves){
+        if(!mv) continue;
+        const {r,c,val} = mv;
+        if(Number.isInteger(r) && Number.isInteger(c) && Number.isInteger(val)){ final[r][c] = val; }
+      }
+    }
+    loadBoard(final);
+    if(typeof state.help === 'boolean'){ helpToggle.checked = state.help; showHelp = state.help; }
+    if(state.diff){ selDiff.value = state.diff; }
+    render();
+    updateShareText();
+    return true;
+  }
 /**
  * createShareLink() → URL string with #s= payload containing base64-encoded JSON state.
  */
@@ -796,7 +820,7 @@ function revertTo(idx){
  * restoreFromURL() → boolean
  * If location.hash has #s=..., decode & restore session.
  */
-  function restoreFromURL(){ const h=location.hash; if(!h || !h.startsWith('#s=')) return false; try{ const b64=h.slice(3); const json=base64Decode(b64); const st=JSON.parse(json); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateIOFromBoard(); return true; }catch(_){ return false; } }
+  function restoreFromURL(){ const h=location.hash; if(!h || !h.startsWith('#s=')) return false; try{ const b64=h.slice(3); const json=base64Decode(b64); const st=JSON.parse(json); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateShareText(); return true; }catch(_){ return false; } }
 
   
 // ---------------------------------------------------------------------------
@@ -816,7 +840,7 @@ function revertTo(idx){
       newPuzzle('medium');
     }
   }
-  updateIOFromBoard();
+  updateShareText();
 })();
 </script>
 </body>
