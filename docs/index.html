@@ -30,7 +30,7 @@
   <!-- Visuals for screen + print; grid and overlay dimensions are JS-aligned. -->
 <style>
     :root{
-      --bg:#0b0c0f; --panel:#111318; --ink:#e8ecf1; --muted:#64748b;
+      --bg:#0b0c0f; --panel:#111318; --ink:#e8ecf1; --muted:#7a8aa1;
       --accent:#60a5fa; --danger:#f87171; --ok:#34d399; --grid:#1f2430; --bold:#e2e8f0;
       --arrow:#f59e0b; --box:#334155; --hl:#1d4ed8; --note:#a78bfa;
     }
@@ -65,9 +65,9 @@
     /* candidates layout 3x3 mini-grid (screen help mode) */
     .cand-text{display:none;} /* hide text candidates on screen */
     .cands{position:absolute; inset:2px; display:grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap:1px; padding:2px}
-    .cand{display:flex; align-items:center; justify-content:center; font-size:clamp(9px,1.8vw,15px); color:#aebacc; opacity:.8; border-radius:4px; cursor:pointer; user-select:none; position:relative; touch-action: manipulation}
-    .cand.disabled{opacity:.18; filter:grayscale(1)}
-    .cand.only{font-weight:800; color:var(--ink); opacity:1}
+    .cand{display:flex; align-items:center; justify-content:center; font-size:clamp(9px,1.8vw,15px); color:var(--ink); border-radius:4px; cursor:pointer; user-select:none; position:relative; touch-action: manipulation}
+    .cand.disabled{color: var(--muted)}
+    .cand.only{outline:2px solid var(--ink); font-weight:800; color:var(--ink); opacity:1}
     .cand.hidden-single{ outline:2px solid var(--ok); color:var(--ok); font-weight:800; }
     .cand:hover{outline:1px solid var(--accent); color:var(--ink)}
 
@@ -84,7 +84,7 @@
     button.warn{background:#1f1a1a; border-color:#3f2525; color:#fecaca}
 
     /* Emphasize key toolbar actions */
-    #btn-print{ font-weight:800 }
+    #btn-print{ border: 2px solid var(--ink); font-weight:800 }
     #btn-why{ border:2px solid var(--ok); color:var(--ok); font-weight:800 }
     #btn-why:hover{ border-color: var(--ok) }
 
@@ -100,6 +100,9 @@
     /* SVG overlay sits exactly over the GRID; JS sets its size/position to match grid */
     .overlay{position:absolute; pointer-events:none; left:0; top:0; width:0; height:0;}
 
+    /* Hidden on screen, shown on print */
+    .print-qr{display:none}
+
     @media print{
       @page{ size: letter portrait; margin: 0.5in; }
       body{background:#fff; color:#000}
@@ -111,8 +114,7 @@
       .cell.filled{background:#fff !important; color:#000 !important}
       .value{color:#000; font-size: clamp(28px, 5vw, 52px)}
       .cand, .cands{display:none}
-      .cand-text{display:none}
-      body.print-hints .cand-text{display:block; position:absolute; top:4px; left:4px; right:4px; font-size:10px; line-height:1.1; color:#222}
+      body.print-hints .cand-text{display:block; position:absolute; top:4px; left:4px; right:4px; font-size:10px; line-height:1.1; color:black}
       svg.overlay{display:none}
       /* Ensure thick 3x3 in print too (3px is fine on paper) */
       .cell[data-col="1"], .cell[data-col="4"], .cell[data-col="7"]{border-left-width:3px}
@@ -124,8 +126,6 @@
       .print-qr img{width:120px; height:120px}
       .print-qr .txt{font-size:12pt}
     }
-    /* Hidden on screen, shown on print */
-    .print-qr{display:none}
   </style>
 </head>
 <body>
