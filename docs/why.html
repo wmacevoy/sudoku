@@ -1,82 +1,371 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Experience why paper Sudoku is better</title>
   <style>
-    :root{
-      --bg:#0b0c0f;--ink:#e8ecf1;--muted:#94a3b8;--panel:#111318;--border:#1e293b;--accent:#60a5fa;--ok:#34d399;--warn:#f59e0b;--paper:#ffffff;--paper-ink:#0b0c0f
+    :root {
+      --bg: #0b0c0f;
+      --ink: #e8ecf1;
+      --muted: #94a3b8;
+      --panel: #111318;
+      --border: #1e293b;
+      --accent: #60a5fa;
+      --ok: #34d399;
+      --warn: #f59e0b;
+      --paper: #ffffff;
+      --paper-ink: #0b0c0f
     }
-    *{box-sizing:border-box}
-    a:link, a:visited{color:var(--accent)}
-    body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial}
-    main{max-width:960px;margin:0 auto;padding:28px 16px 60px}
-    header{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
-    h1{font-size:clamp(22px,3.6vw,34px);margin:0}
-    .lede{color:var(--muted);margin:0 0 4px 0}
-    .tools{display:flex;gap:8px;flex-wrap:wrap}
-    button,.btn{appearance:none;border:1px solid var(--border);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600}
-    button:hover,.btn:hover{border-color:#2b3b55}
-    .pill{font-size:.85rem;padding:4px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
-    .grid{display:grid;gap:12px}
-    .block{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-    .block header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)}
-    .block h2{font-size:1.05rem;margin:0}
-    .status{display:flex;align-items:center;gap:8px}
-    .status .tag{font-size:.8rem;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
-    .tag.start{color:#9aa7bd}
-    .tag.progress{color:#cbd5e1;border-color:#334155}
-    .tag.done{color:var(--ok);border-color:#254936}
-    .content{display:none;padding:14px}
-    .content.open{display:block}
-    .content p{line-height:1.65;margin:.7rem 0}
-    .content ol,.content ul{margin:.4rem 0 .4rem 1.25rem}
-    details{margin:.5rem 0}
-    summary{cursor:pointer;color:var(--accent)}
-    .prompt{background:#0f1625;border:1px dashed #233148;padding:12px;border-radius:12px;margin-top:8px}
-    .prompt h3{margin:.2rem 0 .2rem 0;font-size:.95rem}
-    .muted{color:var(--muted)}
-    .divider{height:1px;background:var(--border);margin:10px 0}
-    footer{margin-top:22px;color:var(--muted);font-size:.9rem}
-    .note{font-size:.9rem;color:var(--muted)}
-    .flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .right{margin-left:auto}
-    .progress{height:6px;background:var(--border);border-radius:999px;overflow:hidden;margin:8px 0 4px}
-    .progress .bar{height:100%;width:0%;background:var(--accent);transition:width .25s linear}
-    :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
-    .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-    @media (max-width:720px){.tools{flex-direction:column;align-items:flex-start}}
-    @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto !important}}
+
+    * {
+      box-sizing: border-box
+    }
+
+    a:link,
+    a:visited {
+      color: var(--accent)
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial
+    }
+
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 28px 16px 60px
+    }
+
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 18px
+    }
+
+    h1 {
+      font-size: clamp(22px, 3.6vw, 34px);
+      margin: 0
+    }
+
+    .lede {
+      color: var(--muted);
+      margin: 0 0 4px 0
+    }
+
+    .tools {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    button,
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--ink);
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600
+    }
+
+    button:hover,
+    .btn:hover {
+      border-color: #2b3b55
+    }
+
+    .pill {
+      font-size: .85rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted)
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px
+    }
+
+    .block {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden
+    }
+
+    .block header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .block h2 {
+      font-size: 1.05rem;
+      margin: 0
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .status .tag {
+      font-size: .8rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted)
+    }
+
+    .tag.start {
+      color: #9aa7bd
+    }
+
+    .tag.progress {
+      color: #cbd5e1;
+      border-color: #334155
+    }
+
+    .tag.done {
+      color: var(--ok);
+      border-color: #254936
+    }
+
+    .content {
+      display: none;
+      padding: 14px
+    }
+
+    .content.open {
+      display: block
+    }
+
+    .content p {
+      line-height: 1.65;
+      margin: .7rem 0
+    }
+
+    .content ol,
+    .content ul {
+      margin: .4rem 0 .4rem 1.25rem
+    }
+
+    details {
+      margin: .5rem 0
+    }
+
+    summary {
+      cursor: pointer;
+      color: var(--accent)
+    }
+
+    .prompt {
+      background: #0f1625;
+      border: 1px dashed #233148;
+      padding: 12px;
+      border-radius: 12px;
+      margin-top: 8px
+    }
+
+    .prompt h3 {
+      margin: .2rem 0 .2rem 0;
+      font-size: .95rem
+    }
+
+    .muted {
+      color: var(--muted)
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 10px 0
+    }
+
+    footer {
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: .9rem
+    }
+
+    .note {
+      font-size: .9rem;
+      color: var(--muted)
+    }
+
+    .flex {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    .right {
+      margin-left: auto
+    }
+
+    .progress {
+      height: 6px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 8px 0 4px
+    }
+
+    .progress .bar {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width .25s linear
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 8px
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0
+    }
+
+    @media (max-width:720px) {
+      .tools {
+        flex-direction: column;
+        align-items: flex-start
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        scroll-behavior: auto !important
+      }
+    }
+
     /* Print: show everything expanded, hide buttons */
-    @media print{
-      body{background:#fff;color:#000}
+    @media print {
+      body {
+        background: #fff;
+        color: #000
+      }
+
       /* Force all text to print dark and backgrounds white */
-      *{color:#000 !important;background:#fff !important}
-      .block,.content{background:#fff !important;border-color:#000 !important}
-      .prompt{background:#fff !important;border-color:#000 !important}
-      .muted{color:#000 !important}
+      * {
+        color: #000 !important;
+        background: #fff !important
+      }
+
+      .block,
+      .content {
+        background: #fff !important;
+        border-color: #000 !important
+      }
+
+      .prompt {
+        background: #fff !important;
+        border-color: #000 !important
+      }
+
+      .muted {
+        color: #000 !important
+      }
+
       /* Hide interactive chrome */
-      button,.btn,.tools,.right,.pill,.progress{display:none !important}
+      button,
+      .btn,
+      .tools,
+      .right,
+      .pill,
+      .progress {
+        display: none !important
+      }
+
       /* Show all lesson content expanded */
-      .content{display:block !important}
-      a{color:#000 !important;text-decoration:none}
+      .content {
+        display: block !important
+      }
+
+      a {
+        color: #000 !important;
+        text-decoration: none
+      }
+
       /* Prefer page breaks between blocks; avoid splitting a block across pages */
-      .block, .block header, .content, .prompt, details { break-inside: avoid; page-break-inside: avoid; }
-      h2, .prompt h3 { break-after: avoid; page-break-after: avoid; }
+      .block,
+      .block header,
+      .content,
+      .prompt,
+      details {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      h2,
+      .prompt h3 {
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+
       /* Provide a little spacing between blocks on print */
-      .block { margin-bottom: 12pt !important; }
+      .block {
+        margin-bottom: 12pt !important;
+      }
+
       /* Help typography avoid awkward single lines at page tops/bottoms */
-      * { orphans: 3; widows: 3; }
+      * {
+        orphans: 3;
+        widows: 3;
+      }
+
       /* Show QR section on print */
-      .print-qr{display:flex !important; align-items:center; gap:12px; border:1px solid #000; padding:8px; border-radius:8px; margin-top:12px; break-inside: avoid; page-break-inside: avoid;}
-      .print-qr img{width:120px; height:120px}
-      .print-qr .txt{font-size:12pt}
+      .print-qr {
+        display: flex !important;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid #000;
+        padding: 8px;
+        border-radius: 8px;
+        margin-top: 12px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .print-qr img {
+        width: 120px;
+        height: 120px
+      }
+
+      .print-qr .txt {
+        font-size: 12pt
+      }
     }
+
     /* Hidden on screen, shown on print */
-    .print-qr{display:none}
+    .print-qr {
+      display: none
+    }
   </style>
 </head>
+
 <body>
   <main>
     <header>
@@ -97,10 +386,12 @@
         <header>
           <h2>Step 1 of 6 · Easy (web, with hints)</h2>
           <div class="status"><span class="tag start" aria-live="polite">Start</span>
-            <button class="toggle" aria-expanded="false" aria-controls="content-1">Open</button></div>
+            <button class="toggle" aria-expanded="false" aria-controls="content-1">Open</button>
+          </div>
         </header>
         <div class="content" id="content-1" hidden>
-          <p>Open <a href="index.html">Sudoku</a> with <strong>Help</strong> on. Play one <em>easy</em> game. Notice what your attention does.</p>
+          <p>Open <a href="index.html">Sudoku</a> with <strong>Help</strong> on. Play one <em>easy</em> game. Notice
+            what your attention does.</p>
           <details>
             <summary>Thinking about thinking</summary>
             <ul class="muted">
@@ -127,7 +418,8 @@
         <header>
           <h2>Step 2 of 6 · Easy (paper, no hints)</h2>
           <div class="status"><span class="tag start" aria-live="polite">Start</span>
-            <button class="toggle" aria-expanded="false" aria-controls="content-2">Open</button></div>
+            <button class="toggle" aria-expanded="false" aria-controls="content-2">Open</button>
+          </div>
         </header>
         <div class="content" id="content-2" hidden>
           <p>Disable help, generate an <strong>easy</strong> puzzle, print it, and solve it with pencil.</p>
@@ -138,7 +430,8 @@
           <div class="prompt">
             <h3>Discussion prompt</h3>
             <ul>
-              <li>Describe the difference in understanding, <strong>attention</strong>, and effort between web and paper.</li>
+              <li>Describe the difference in understanding, <strong>attention</strong>, and effort between web and
+                paper.</li>
               <li>Name one moment you nearly guessed. Why did—or didn’t—you stop?</li>
             </ul>
           </div>
@@ -155,15 +448,18 @@
         <header>
           <h2>Step 3 of 6 · Easy (web again, with hints)</h2>
           <div class="status"><span class="tag start" aria-live="polite">Start</span>
-            <button class="toggle" aria-expanded="false" aria-controls="content-3">Open</button></div>
+            <button class="toggle" aria-expanded="false" aria-controls="content-3">Open</button>
+          </div>
         </header>
         <div class="content" id="content-3" hidden>
           <p>Play <em>another easy</em> puzzle online with Help on.</p>
           <div class="prompt">
             <h3>What changed?</h3>
             <ul>
-              <li>List two mechanics (e.g., scanning singles, box/row/column interactions) you noticed now that you missed in Step 1.</li>
-              <li>Are you still clicking mindlessly—or explaining to yourself why one option works and others do not?</li>
+              <li>List two mechanics (e.g., scanning singles, box/row/column interactions) you noticed now that you
+                missed in Step 1.</li>
+              <li>Are you still clicking mindlessly—or explaining to yourself why one option works and others do not?
+              </li>
             </ul>
           </div>
           <div class="flex">
@@ -179,14 +475,16 @@
         <header>
           <h2>Step 4 of 6 · Medium (web, with hints)</h2>
           <div class="status"><span class="tag start" aria-live="polite">Start</span>
-            <button class="toggle" aria-expanded="false" aria-controls="content-4">Open</button></div>
+            <button class="toggle" aria-expanded="false" aria-controls="content-4">Open</button>
+          </div>
         </header>
         <div class="content" id="content-4" hidden>
-          <p>Play one <em>medium</em> puzzle online.</p>
+          <p>Play one <em>with-help medium</em> puzzle online.</p>
           <div class="prompt">
             <h3>Discussion prompts</h3>
             <ul>
-              <li>What were you noticing this time? Where did hints help—and where did they ceiling out?</li>
+              <li>How did your brain's attention change. How hard is it to keep track of your thoughts online vs. some
+                paper notes?</li>
             </ul>
           </div>
           <div class="flex">
@@ -202,15 +500,18 @@
         <header>
           <h2>Step 5 of 6 · Medium (paper, no hints)</h2>
           <div class="status"><span class="tag start" aria-live="polite">Start</span>
-            <button class="toggle" aria-expanded="false" aria-controls="content-5">Open</button></div>
+            <button class="toggle" aria-expanded="false" aria-controls="content-5">Open</button>
+          </div>
         </header>
         <div class="content" id="content-5" hidden>
-          <p>Generate and print a <strong>medium</strong> puzzle. Solve it by hand. No assistance tools.</p>
+          <p>Generate and print a <strong>no-help medium</strong> puzzle. Solve it: just you and a pencil. Give yourself
+            some time.</p>
           <div class="prompt">
             <h3>Debrief</h3>
             <ul>
               <li>How heavy was the mental load?</li>
-              <li>Were you disrupted by your phone or other distractions in mid-thought? Estimate your “context rebuild” cost per distraction and total it.</li>
+              <li>Were you disrupted by your phone or other distractions in mid-thought? Estimate your “context rebuild”
+                cost per distraction and total it.</li>
             </ul>
           </div>
           <div class="flex">
@@ -226,23 +527,38 @@
         <header>
           <h2>Step 6 of 6 · The Lesson</h2>
           <div class="status"><span class="tag start" aria-live="polite">Start</span>
-            <button class="toggle" aria-expanded="false" aria-controls="content-6">Open</button></div>
+            <button class="toggle" aria-expanded="false" aria-controls="content-6">Open</button>
+          </div>
         </header>
         <div class="content" id="content-6" hidden>
           <div class="prompt">
-            <p>Computers are elevators for your brain; useful, but if you never take the stairs, you go soft. LLMs raise the stakes: great tools, bad crutches. A paper Sudoku is a push-up for attention and logic. Do one; do it with a friend for social intelligence; invent twists for creativity. Your attention is under constant assault—protect it, train it, use it. Small practices compound; they shape how you think.</p>
+            <p>Computers are elevators for your brain; useful, but if you never take the stairs, you go soft. LLMs raise
+              the stakes: great tools, bad crutches. A paper Sudoku is a push-up for attention and logic. Do one; do it
+              with a friend for social intelligence; invent twists for creativity. Your attention is under constant
+              assault—protect it, train it, use it. Small practices compound; they shape how you think.</p>
           </div>
           <details>
-            <p>Tools like ChatGPT or GitHub Copilot are powerful—but if you let them think for you, your own muscles of logic, focus, and creativity atrophy. Just like elevators save steps but don’t build strength, LLMs can shortcut your effort but can bypass any understanding.</p>
+            <p>Tools like ChatGPT or GitHub Copilot are powerful—but if you let them think for you, your own muscles of
+              logic, focus, and creativity atrophy. Just like elevators save steps but don’t build strength, LLMs can
+              shortcut your effort but can bypass any understanding.</p>
 
-            <p>Every time you work a puzzle by hand, cook a meal from scratch, or explain your own solution out loud, you’re training the habits that make you resilient: focus under distraction, patience in problem-solving, and the confidence to trust your own reasoning. Those habits compound just like investing does—the earlier you start, the stronger they grow.</p>
-            
-            <p>So here’s the shift: don’t use LLMs to replace your thinking. Use them the way you’d use a coach, a textbook, or a lab partner—to clarify rules, to check your work, to push your ideas further. First wrestle with the problem yourself; then bring in the tool to understand better or to test your solution.</p>
-            
-            <p>Your future will be full of tools that make life easier. What will set you apart is not how fast you can copy an answer, but how deeply you understand and how boldly you can build your own. Protect your attention, train your mind, and keep practicing the “manual mode.” That is how you grow into someone who not only uses technology—but creates it.</p>
+            <p>Every time you work a puzzle by hand, cook a meal from scratch, or explain your own solution out loud,
+              you’re training the habits that make you resilient: focus under distraction, patience in problem-solving,
+              and the confidence to trust your own reasoning. Those habits compound just like investing does—the earlier
+              you start, the stronger they grow.</p>
 
-            <p>Play Sudoku on paper (or some other offline mental workout). Cook a meal with friends. Play a social physical game. Practice mindfulness. These games compound into a healthy mind and healthy life.</p>
-                      </details>
+            <p>So here’s the shift: don’t use LLMs to replace your thinking. Use them the way you’d use a coach, a
+              textbook, or a lab partner—to clarify rules, to check your work, to push your ideas further. First wrestle
+              with the problem yourself; then bring in the tool to understand better or to test your solution.</p>
+
+            <p>Your future will be full of tools that make life easier. What will set you apart is not how fast you can
+              copy an answer, but how deeply you understand and how boldly you can build your own. Protect your
+              attention, train your mind, and keep practicing the “manual mode.” That is how you grow into someone who
+              not only uses technology—but creates it.</p>
+
+            <p>Play Sudoku on paper (or some other offline mental workout). Cook a meal with friends. Play a social
+              physical game. Practice mindfulness. These games compound into a healthy mind and healthy life.</p>
+          </details>
           <div class="flex">
             <button class="markDone">Mark Lesson Done</button>
             <span class="note">You’ve unlocked your healthy-mind toolkit.</span>
@@ -255,10 +571,11 @@
       <div class="divider"></div>
       <p class="note">Careful thinking and attention are trainable skills.</p>
     </footer>
+
     <section class="print-qr" aria-label="QR code to play online">
       <img src="qr.png" alt="QR code for https://wmacevoy.github.io/sudoku/">
       <div class="txt">
-        <div><strong>Play online:</strong></div>
+        <div><strong>No ads or tracking:</strong> online or (better) print and play offline.</div>
         <div>https://wmacevoy.github.io/sudoku/</div>
       </div>
     </section>
@@ -267,132 +584,133 @@
   <div aria-live="polite" class="sr-only" id="a11yStatus"></div>
 
   <script>
-  (function(){
-    const blocks = Array.from(document.querySelectorAll('.block'));
-    const storeKey = 'why_progress_v2';
-    const a11y = document.getElementById('a11yStatus');
-    const progressBar = document.getElementById('progressBar');
-    const progressLabel = document.getElementById('progressLabel');
+    (function () {
+      const blocks = Array.from(document.querySelectorAll('.block'));
+      const storeKey = 'why_progress_v2';
+      const a11y = document.getElementById('a11yStatus');
+      const progressBar = document.getElementById('progressBar');
+      const progressLabel = document.getElementById('progressLabel');
 
-    // localStorage guard
-    const storage = (function(){
-      try { const x='__t'; localStorage.setItem(x,'1'); localStorage.removeItem(x); return localStorage; } catch(e){ return {getItem:()=>null,setItem:()=>{},removeItem:()=>{}}; }
-    })();
+      // localStorage guard
+      const storage = (function () {
+        try { const x = '__t'; localStorage.setItem(x, '1'); localStorage.removeItem(x); return localStorage; } catch (e) { return { getItem: () => null, setItem: () => { }, removeItem: () => { } }; }
+      })();
 
-    let progress = JSON.parse(storage.getItem(storeKey) || '{}');
+      let progress = JSON.parse(storage.getItem(storeKey) || '{}');
 
-    function setTag(el, state){
-      const tag = el.querySelector('.status .tag');
-      tag.classList.remove('start','progress','done');
-      tag.classList.add(state);
-      tag.textContent = state === 'done' ? 'Done' : state === 'progress' ? 'In progress' : 'Start';
-    }
-
-    function openContent(el){
-      const content = el.querySelector('.content');
-      content.hidden = false;
-      el.querySelector('.toggle').setAttribute('aria-expanded','true');
-      content.classList.add('open');
-      el.querySelector('.toggle').textContent = 'Close';
-      setTag(el,'progress');
-    }
-
-    function closeContent(el){
-      const content = el.querySelector('.content');
-      content.hidden = true;
-      el.querySelector('.toggle').setAttribute('aria-expanded','false');
-      content.classList.remove('open');
-      el.querySelector('.toggle').textContent = 'Open';
-      if(!isDone(stepOf(el))) setTag(el,'start');
-    }
-
-    function stepOf(el){ return Number(el.dataset.step); }
-    function isDone(step){ return !!progress['step'+step]; }
-
-    function unlock(step){
-      const el = document.querySelector('.block[data-step="'+step+'"]');
-      if(el){ setTag(el,'start'); el.querySelector('.toggle').disabled = false; }
-    }
-
-    function updateProgress(){
-      const total = blocks.length;
-      const done = Object.keys(progress).filter(k=>progress[k]).length;
-      const pct = Math.round((done/total)*100);
-      progressBar.style.width = pct+'%';
-      progressLabel.textContent = `Step ${Math.min(done+1,total)} of ${total}`;
-    }
-
-    // Wire up blocks
-    blocks.forEach((el)=>{
-      const step = stepOf(el);
-      const btn = el.querySelector('.toggle');
-      const doneBtn = el.querySelector('.markDone');
-      const content = el.querySelector('.content');
-
-      // initialize
-      if(isDone(step)){
-        setTag(el,'done');
-        content.hidden = false; content.classList.add('open');
-        el.querySelector('.toggle').setAttribute('aria-expanded','true');
-        btn.textContent = 'Close';
-      } else {
-        setTag(el, step===1 ? 'progress' : 'start');
-        if(step===1){
-          content.hidden = false; content.classList.add('open'); el.querySelector('.toggle').setAttribute('aria-expanded','true');
-          btn.textContent = 'Close';
-        } else {
-          btn.textContent = 'Open';
-        }
+      function setTag(el, state) {
+        const tag = el.querySelector('.status .tag');
+        tag.classList.remove('start', 'progress', 'done');
+        tag.classList.add(state);
+        tag.textContent = state === 'done' ? 'Done' : state === 'progress' ? 'In progress' : 'Start';
       }
 
-      btn.addEventListener('click',()=>{
-        const open = content.classList.contains('open');
-        if(open){
-          content.classList.remove('open'); content.hidden = true; btn.setAttribute('aria-expanded','false');
-          btn.textContent = 'Open';
-          if(!isDone(step)) setTag(el,'start');
-        } else {
-          content.classList.add('open'); content.hidden = false; btn.setAttribute('aria-expanded','true');
+      function openContent(el) {
+        const content = el.querySelector('.content');
+        content.hidden = false;
+        el.querySelector('.toggle').setAttribute('aria-expanded', 'true');
+        content.classList.add('open');
+        el.querySelector('.toggle').textContent = 'Close';
+        setTag(el, 'progress');
+      }
+
+      function closeContent(el) {
+        const content = el.querySelector('.content');
+        content.hidden = true;
+        el.querySelector('.toggle').setAttribute('aria-expanded', 'false');
+        content.classList.remove('open');
+        el.querySelector('.toggle').textContent = 'Open';
+        if (!isDone(stepOf(el))) setTag(el, 'start');
+      }
+
+      function stepOf(el) { return Number(el.dataset.step); }
+      function isDone(step) { return !!progress['step' + step]; }
+
+      function unlock(step) {
+        const el = document.querySelector('.block[data-step="' + step + '"]');
+        if (el) { setTag(el, 'start'); el.querySelector('.toggle').disabled = false; }
+      }
+
+      function updateProgress() {
+        const total = blocks.length;
+        const done = Object.keys(progress).filter(k => progress[k]).length;
+        const pct = Math.round((done / total) * 100);
+        progressBar.style.width = pct + '%';
+        progressLabel.textContent = `Step ${Math.min(done + 1, total)} of ${total}`;
+      }
+
+      // Wire up blocks
+      blocks.forEach((el) => {
+        const step = stepOf(el);
+        const btn = el.querySelector('.toggle');
+        const doneBtn = el.querySelector('.markDone');
+        const content = el.querySelector('.content');
+
+        // initialize
+        if (isDone(step)) {
+          setTag(el, 'done');
+          content.hidden = false; content.classList.add('open');
+          el.querySelector('.toggle').setAttribute('aria-expanded', 'true');
           btn.textContent = 'Close';
-          setTag(el,'progress');
+        } else {
+          setTag(el, step === 1 ? 'progress' : 'start');
+          if (step === 1) {
+            content.hidden = false; content.classList.add('open'); el.querySelector('.toggle').setAttribute('aria-expanded', 'true');
+            btn.textContent = 'Close';
+          } else {
+            btn.textContent = 'Open';
+          }
+        }
+
+        btn.addEventListener('click', () => {
+          const open = content.classList.contains('open');
+          if (open) {
+            content.classList.remove('open'); content.hidden = true; btn.setAttribute('aria-expanded', 'false');
+            btn.textContent = 'Open';
+            if (!isDone(step)) setTag(el, 'start');
+          } else {
+            content.classList.add('open'); content.hidden = false; btn.setAttribute('aria-expanded', 'true');
+            btn.textContent = 'Close';
+            setTag(el, 'progress');
+          }
+        });
+
+        if (doneBtn) {
+          doneBtn.addEventListener('click', () => {
+            progress['step' + step] = true;
+            storage.setItem(storeKey, JSON.stringify(progress));
+            setTag(el, 'done');
+            content.classList.add('open'); content.hidden = false;
+            btn.textContent = 'Close';
+            const next = step + 1; unlock(next);
+            const nextEl = document.querySelector('.block[data-step="' + next + '"]');
+            if (nextEl) {
+              if (!nextEl.querySelector('.content').classList.contains('open')) {
+                nextEl.querySelector('.toggle').focus({ preventScroll: true });
+                nextEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                openContent(nextEl);
+              }
+            }
+            a11y.textContent = `Step ${step} marked done. Step ${next} unlocked.`;
+            updateProgress();
+          });
         }
       });
 
-      if(doneBtn){
-        doneBtn.addEventListener('click',()=>{
-          progress['step'+step]=true;
-          storage.setItem(storeKey, JSON.stringify(progress));
-          setTag(el,'done');
-          content.classList.add('open'); content.hidden=false;
-          btn.textContent = 'Close';
-          const next = step+1; unlock(next);
-          const nextEl = document.querySelector('.block[data-step="'+next+'"]');
-          if(nextEl){
-            if(!nextEl.querySelector('.content').classList.contains('open')){
-              nextEl.querySelector('.toggle').focus({preventScroll:true});
-              nextEl.scrollIntoView({behavior:'smooth', block:'start'});
-              openContent(nextEl);
-            }
-          }
-          a11y.textContent = `Step ${step} marked done. Step ${next} unlocked.`;
-          updateProgress();
-        });
-      }
-    });
+      // Initialize progress bar
+      updateProgress();
 
-    // Initialize progress bar
-    updateProgress();
+      // Reset
+      const resetBtn = document.getElementById('resetProgress');
+      resetBtn.addEventListener('click', () => {
+        if (confirm('Reset progress for this page?')) {
+          storage.removeItem(storeKey);
+          location.reload();
+        }
+      });
 
-    // Reset
-    const resetBtn = document.getElementById('resetProgress');
-    resetBtn.addEventListener('click',()=>{
-      if(confirm('Reset progress for this page?')){
-        storage.removeItem(storeKey);
-        location.reload();
-      }
-    });
-
-  })();
+    })();
   </script>
 </body>
+
 </html>
