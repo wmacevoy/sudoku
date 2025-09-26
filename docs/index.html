@@ -108,6 +108,7 @@
     select, button{background:var(--control-bg); color:var(--ink); border:1px solid var(--control-border); border-radius:10px}
     select{padding:8px 10px}
     button{padding:9px 12px; cursor:pointer}
+    .toolbar input[type="number"]{background:var(--control-bg); color:var(--ink); border:1px solid var(--control-border); border-radius:10px; padding:8px 10px; width:72px}
     button:hover{border-color:var(--control-border-hover)}
     button.primary{background:var(--primary-action)}
     button.warn{background:var(--warn-bg); border-color:var(--warn-border); color:var(--warn-ink)}
@@ -132,6 +133,31 @@
     /* Hidden on screen, shown on print */
     .print-title{display:none; text-align:center; margin:12px 0; font-size:18px; font-weight:600;}
     .print-qr{display:none}
+    #vitaminsSheet{display:none; padding:0; background:transparent; color:#000;}
+    #vitaminsSheet .vitamin-page{display:block; margin:0; padding:0 0 18px 0; break-inside: avoid-page; page-break-inside: avoid; -webkit-region-break-inside: avoid;}
+    #vitaminsSheet .vitamin-page + .vitamin-page{break-before: page; page-break-before: always;}
+    #vitaminsSheet .vitamin-board-wrap{width:100%; display:block;}
+    #vitaminsSheet .vitamin-board{width:95%; max-width:760px;}
+    #vitaminsSheet .vitamin-board .cell{background:#fff; color:#000;}
+    #vitaminsSheet .vitamin-board .value{color:#000; font-size: clamp(26px, 5vw, 52px);}
+    #vitaminsSheet .vitamin-board .cand-text{font-size:10px; line-height:1.1; color:#000; text-align:left; white-space:normal;}
+    #vitaminsSheet .vitamin-qr{width:95%; max-width:760px; margin:12px auto 0 auto;}
+    body.vitamins-mode #vitaminsSheet .print-qr{display:flex; align-items:center; gap:12px; border:1px solid #000; padding:8px; border-radius:8px; margin:12px auto 0 auto;}
+    body.vitamins-mode{background:#fff; color:#000;}
+    body.vitamins-mode header,
+    body.vitamins-mode main,
+    body.vitamins-mode #printTitle,
+    body.vitamins-mode > .print-qr{display:none !important;}
+    body.vitamins-mode #vitaminsSheet{display:block;}
+    .vitamins-debug{display:none; margin:24px 18px; padding:16px; border:1px solid var(--border); border-radius:12px; background:rgba(15,23,42,0.35);}
+    body.vitamins-mode .vitamins-debug{display:none !important;}
+    .vitamins-debug.visible{display:block;}
+    .vitamins-debug h2{margin:0 0 8px 0; font-size:16px;}
+    .vitamins-debug p{margin:0 0 12px 0; font-size:13px; color:var(--muted);}
+    .vitamins-debug textarea{width:100%; min-height:180px; padding:10px; border-radius:10px; border:1px solid var(--control-border); background:var(--textarea-bg); color:var(--input-ink); font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;}
+    .vitamins-debug .vitamins-debug-actions{display:flex; gap:12px; margin-top:12px; flex-wrap:wrap;}
+    .vitamins-debug button{padding:8px 12px; border-radius:10px; border:1px solid var(--control-border); background:var(--control-bg); color:var(--ink); cursor:pointer;}
+    .vitamins-debug button:hover{border-color:var(--control-border-hover);}
 
     @media print{
       @page{ size: letter portrait; margin: 0.5in; }
@@ -156,6 +182,11 @@
       .print-qr{display:flex !important; align-items:center; gap:12px; border:1px solid #000; padding:8px; border-radius:8px; margin:12px 18px 0 18px; break-inside: avoid; page-break-inside: avoid;}
       .print-qr img{width:120px; height:120px}
       .print-qr .txt{font-size:12pt}
+      body.vitamins-mode #vitaminsSheet{display:block !important;}
+      body.vitamins-mode{background:#fff;}
+      #vitaminsSheet{background:transparent !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
+      #vitaminsSheet .vitamin-page{break-inside: avoid-page; page-break-inside: avoid;}
+      #vitaminsSheet .vitamin-page + .vitamin-page{break-before: page; page-break-before: always;}
     }
   </style>
 </head>
@@ -172,7 +203,8 @@
         <option value="medium" selected>Medium</option>
         <option value="hard">Hard</option>
       </select>
-      <button id="btn-reset" class="warn">Reset</button>
+      <input id="vitaminsCount" type="number" min="1" max="99" value="9" aria-label="Vitamins count" title="How many vitamins pages to generate (1–99)" />
+      <button id="btn-vitamins" class="primary">Vitamins</button>
     </div>
   </header>
   <div id="printTitle" class="print-title" aria-hidden="true">Intentional Sudoku - Medium</div>
@@ -214,6 +246,18 @@
     </div>
   </section>
 
+  <div id="vitaminsSheet" aria-hidden="true"></div>
+
+  <section id="vitaminsDebugPanel" class="vitamins-debug" aria-live="polite">
+    <h2>Vitamins Debug</h2>
+    <p>This diagnostic dump captures the generated vitamins pages. Share it if print layout misbehaves.</p>
+    <textarea id="vitaminsDebugText" readonly></textarea>
+    <div class="vitamins-debug-actions">
+      <button id="btnDownloadVitaminsDebug" type="button">Download Debug JSON</button>
+      <button id="btnClearVitaminsDebug" type="button">Clear</button>
+    </div>
+  </section>
+
 <script>
 /**
  * JAVASCRIPT OVERVIEW
@@ -247,9 +291,17 @@
   const selDiff = document.getElementById('sel-diff');
   const diffLabels = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
   const printTitleEl = document.getElementById('printTitle');
+  const vitaminsCountInput = document.getElementById('vitaminsCount');
+  const urlParams = new URLSearchParams(window.location.search);
+  const debugEnabled = urlParams.get('debug') === 'true';
+  const vitaminsDebugPanel = document.getElementById('vitaminsDebugPanel');
+  const vitaminsDebugText = document.getElementById('vitaminsDebugText');
+  const vitaminsDebugDownloadBtn = document.getElementById('btnDownloadVitaminsDebug');
+  const vitaminsDebugClearBtn = document.getElementById('btnClearVitaminsDebug');
   let showHelp = helpToggle.checked;
   const DEFAULT_LEGEND = 'Hover or tap a pencil mark to see the reasoning. Double-click or double-tap to place.';
-
+  let vitaminsDebugData = null;
+  
   // Model
   let board = make2D(N,N,0);      // 0=empty else 1..9
   let candidates = make2D(N,N,() => new Set(DIGITS));
@@ -258,6 +310,7 @@
   let selected = {r:0,c:0};
   let actionLog = [];
   let saveT = null;
+  const vitaminsState = { active:false, afterPrintHandler:null, prevPrintHints:false };
 
   // Utils
 /** nowISO() → ISO 8601 timestamp string */
@@ -403,6 +456,160 @@
     const title = `Intentional Sudoku - ${label}`;
     document.title = title;
     if(printTitleEl) printTitleEl.textContent = title;
+  }
+/** computeCandidatesForBoard(b) — derive candidate sets for a given puzzle */
+
+  function computeCandidatesForBoard(b){
+    const cands = make2D(N,N,() => new Set(DIGITS));
+    for(let r=0;r<9;r++){
+      for(let c=0;c<9;c++){
+        const val = b[r][c];
+        if(!val) continue;
+        cands[r][c].clear();
+        for(let i=0;i<9;i++){ cands[r][i].delete(val); cands[i][c].delete(val); }
+        const R=Math.floor(r/3)*3, C=Math.floor(c/3)*3;
+        for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) cands[R+dr][C+dc].delete(val);
+      }
+    }
+    return cands;
+  }
+/** formatCandidatesForPrint(set) — pack digits into a single-line string */
+
+  function formatCandidatesForPrint(set){
+    return [...set].sort((a,b)=>a-b).join(' ');
+  }
+/** prepareVitaminsDebug(diff, includeHelp) — capture layout diagnostics */
+
+  function prepareVitaminsDebug(diff, includeHelp, requestedCount){
+    if(!debugEnabled || !vitaminsDebugText || !vitaminsDebugPanel) return;
+    const sheet = document.getElementById('vitaminsSheet');
+    if(!sheet) return;
+    const pages = Array.from(sheet.querySelectorAll('.vitamin-page'));
+    const layout = pages.map((page, idx)=>{
+      const rect = page.getBoundingClientRect();
+      const board = page.querySelector('.vitamin-board');
+      const boardRect = board ? board.getBoundingClientRect() : null;
+      return {
+        page: idx+1,
+        childTags: Array.from(page.children).map(ch => ch.tagName.toLowerCase()),
+        offsetHeight: page.offsetHeight,
+        scrollHeight: page.scrollHeight,
+        clientHeight: page.clientHeight,
+        rectHeight: rect ? Math.round(rect.height) : null,
+        rectWidth: rect ? Math.round(rect.width) : null,
+        boardRectHeight: boardRect ? Math.round(boardRect.height) : null,
+        boardRectWidth: boardRect ? Math.round(boardRect.width) : null
+      };
+    });
+    vitaminsDebugData = {
+      generatedAt: nowISO(),
+      difficulty: diff,
+      help: includeHelp,
+      requestedCount,
+      pageCount: pages.length,
+      layout,
+      html: sheet.innerHTML
+    };
+    const summary = {
+      generatedAt: vitaminsDebugData.generatedAt,
+      difficulty: diff,
+      help: includeHelp,
+      requestedCount,
+      pageCount: pages.length,
+      layout
+    };
+    vitaminsDebugText.value = JSON.stringify(summary, null, 2);
+    vitaminsDebugPanel.classList.add('visible');
+  }
+/** downloadVitaminsDebug() — export debug JSON */
+
+  function downloadVitaminsDebug(){
+    if(!debugEnabled){ return; }
+    if(!vitaminsDebugData){ alert('Run “81 Vitamins” first to capture diagnostics.'); return; }
+    const filename = `intentional-sudoku-vitamins-debug-${vitaminsDebugData.generatedAt.replace(/[:.]/g,'-')}.json`;
+    const blob = new Blob([JSON.stringify(vitaminsDebugData, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 0);
+  }
+/** clearVitaminsDebug() — hide diagnostics */
+
+  function clearVitaminsDebug(){
+    if(!debugEnabled){ return; }
+    vitaminsDebugData = null;
+    if(vitaminsDebugText) vitaminsDebugText.value='';
+    if(vitaminsDebugPanel) vitaminsDebugPanel.classList.remove('visible');
+  }
+/** buildQRSection() — clone base QR block for vitamins pages */
+
+  function buildQRSection(){
+    const template = document.querySelector('section.print-qr');
+    if(template){
+      const clone = template.cloneNode(true);
+      clone.classList.add('vitamin-qr');
+      return clone;
+    }
+    const section=document.createElement('section');
+    section.className='print-qr vitamin-qr';
+    const img=document.createElement('img');
+    img.src='qr.png';
+    img.alt='QR code for intentionalsudoku.com';
+    section.appendChild(img);
+    const txt=document.createElement('div');
+    txt.className='txt';
+    const line1=document.createElement('div');
+    line1.innerHTML='<strong>No ads or tracking:</strong> online or (better) print and play offline.';
+    const line2=document.createElement('div');
+    line2.textContent='intentionalsudoku.com';
+    txt.appendChild(line1);
+    txt.appendChild(line2);
+    section.appendChild(txt);
+    return section;
+  }
+/** buildVitaminBoard(board, includeHelp) — render a static board for vitamins sheet */
+
+  function buildVitaminBoard(boardData, includeHelp){
+    const wrap=document.createElement('div');
+    wrap.className='vitamin-board-wrap board-wrap';
+    const boardEl=document.createElement('div');
+    boardEl.className='board vitamin-board';
+    const grid=document.createElement('div');
+    grid.className='grid';
+    const cands = includeHelp ? computeCandidatesForBoard(boardData) : null;
+
+    for(let r=0;r<N;r++){
+      for(let c=0;c<N;c++){
+        const cell=document.createElement('div');
+        cell.className='cell';
+        cell.dataset.row=r+1;
+        cell.dataset.col=c+1;
+        const val = boardData[r][c];
+        if(val){
+          cell.classList.add('filled');
+          const valueEl=document.createElement('div');
+          valueEl.className='value';
+          valueEl.textContent=val;
+          cell.appendChild(valueEl);
+        } else if(includeHelp && cands){
+          const cand=document.createElement('div');
+          cand.className='cand-text';
+          cand.textContent=formatCandidatesForPrint(cands[r][c]);
+          cell.appendChild(cand);
+        }
+        grid.appendChild(cell);
+      }
+    }
+
+    boardEl.appendChild(grid);
+    wrap.appendChild(boardEl);
+    return wrap;
   }
 /** Fisher–Yates shuffle in-place; returns the same array for chaining. */
 
@@ -615,16 +822,31 @@ function revertTo(idx){
     backtrack(); return count;
   }
 /**
- * newPuzzle(diff) — carve clues from a full board until unique solution remains.
- * Difficulty here is crude (target clue count); not a human-grade measure.
+ * createPuzzle(diff) — generate a new puzzle grid for the requested difficulty.
  */
-  function newPuzzle(diff){
-    const targetClues = diff==='easy'? 40 : diff==='medium'? 32 : 26; // rough bands
-    let b = generateFull();
+  function createPuzzle(diff){
+    const targetClues = diff==='easy'? 40 : diff==='medium'? 32 : 26;
+    const solution = generateFull();
+    const puzzle = cloneBoard(solution);
     let cells = shuffle(Array.from({length:81},(_,i)=>i));
     let clues = 81;
-    for(const idx of cells){ if(clues<=targetClues) break; const r=Math.floor(idx/9), c=idx%9; const save=b[r][c]; b[r][c]=0; const copy=cloneBoard(b); if(countSolutions(copy,2)!==1){ b[r][c]=save; } else { clues--; } }
-    loadBoard(b);
+    for(const idx of cells){
+      if(clues<=targetClues) break;
+      const r=Math.floor(idx/9), c=idx%9;
+      const saved = puzzle[r][c];
+      puzzle[r][c]=0;
+      const copy=cloneBoard(puzzle);
+      if(countSolutions(copy,2)!==1){ puzzle[r][c]=saved; }
+      else { clues--; }
+    }
+    return puzzle;
+  }
+/**
+ * newPuzzle(diff) — use createPuzzle to refresh the live board.
+ */
+  function newPuzzle(diff){
+    const next = createPuzzle(diff);
+    loadBoard(next);
     updateShareText();
     log({type:'new', difficulty: diff});
     scheduleSave();
@@ -779,7 +1001,9 @@ function revertTo(idx){
   document.getElementById('btn-why').addEventListener('click', ()=>{ window.open('why.html','_blank','noopener'); });
   helpToggle.addEventListener('change', ()=> { showHelp = helpToggle.checked; render(); scheduleSave(); });
   selDiff.addEventListener('change', ()=>{ updateDifficultyUI(); scheduleSave(); });
-  document.getElementById('btn-reset').addEventListener('click', reset);
+  document.getElementById('btn-vitamins').addEventListener('click', generateVitamins);
+  if(debugEnabled && vitaminsDebugDownloadBtn){ vitaminsDebugDownloadBtn.addEventListener('click', downloadVitaminsDebug); }
+  if(debugEnabled && vitaminsDebugClearBtn){ vitaminsDebugClearBtn.addEventListener('click', clearVitaminsDebug); }
 
   // Keep overlay aligned on resize/zoom
   const ro = new ResizeObserver(()=>{ syncOverlayToGrid(); });
@@ -861,6 +1085,79 @@ function revertTo(idx){
     render();
     updateShareText();
     return true;
+  }
+/** renderVitaminsSheet(puzzles, diff, includeHelp) — populate print layout */
+
+  function renderVitaminsSheet(puzzles, diff, includeHelp){
+    const sheet = document.getElementById('vitaminsSheet');
+    if(!sheet) return;
+    sheet.setAttribute('aria-hidden','false');
+    sheet.innerHTML='';
+    const titleText = `Intentional Sudoku - ${difficultyLabel(diff)}`;
+    puzzles.forEach((gridData)=>{
+      const page=document.createElement('section');
+      page.className='vitamin-page';
+      const title=document.createElement('h2');
+      title.className='print-title';
+      title.textContent=titleText;
+      page.appendChild(title);
+      page.appendChild(buildVitaminBoard(gridData, includeHelp));
+
+      const qr=buildQRSection();
+      page.appendChild(qr);
+      sheet.appendChild(page);
+    });
+    // Prepare optional diagnostics when debug flag is on
+    prepareVitaminsDebug(diff, includeHelp, puzzles.length);
+    sheet.scrollTop = 0;
+  }
+/** enterVitaminsMode(includeHelp, diffLabel) — prep UI for vitamins print */
+
+  function enterVitaminsMode(includeHelp, diffLabel){
+    vitaminsState.prevPrintHints = document.body.classList.contains('print-hints');
+    if(includeHelp){ document.body.classList.add('print-hints'); }
+    else { document.body.classList.remove('print-hints'); }
+    const vitaminsTitle = `Intentional Sudoku - ${diffLabel} Vitamins`;
+    document.title = vitaminsTitle;
+    document.body.classList.add('vitamins-mode');
+  }
+/** exitVitaminsMode() — restore interactive UI after printing */
+
+  function exitVitaminsMode(){
+    document.body.classList.remove('vitamins-mode');
+    if(vitaminsState.prevPrintHints){ document.body.classList.add('print-hints'); }
+    else { document.body.classList.remove('print-hints'); }
+    const sheet = document.getElementById('vitaminsSheet');
+    if(sheet){ sheet.innerHTML=''; sheet.setAttribute('aria-hidden','true'); }
+    updateDifficultyUI();
+    vitaminsState.active = false;
+    if(vitaminsState.afterPrintHandler){
+      window.removeEventListener('afterprint', vitaminsState.afterPrintHandler);
+      vitaminsState.afterPrintHandler = null;
+    }
+  }
+/** generateVitamins() — build 31-print sheet and trigger print dialog */
+
+  function generateVitamins(){
+    if(vitaminsState.active) return;
+    vitaminsState.active = true;
+    const diff = selDiff.value;
+    const includeHelp = helpToggle.checked;
+    const count = Math.min(99, Math.max(1, parseInt((vitaminsCountInput && vitaminsCountInput.value) || '9', 10) || 9));
+    const puzzles = [];
+    for(let i=0;i<count;i++){ puzzles.push(createPuzzle(diff)); }
+    renderVitaminsSheet(puzzles, diff, includeHelp);
+    enterVitaminsMode(includeHelp, difficultyLabel(diff));
+    log({type:'vitamins', difficulty: diff, help: includeHelp, count});
+    const cleanup = ()=>{ exitVitaminsMode(); };
+    const handler = ()=>{ cleanup(); };
+    vitaminsState.afterPrintHandler = handler;
+    window.addEventListener('afterprint', handler);
+    setTimeout(()=>{
+      window.print();
+      // Fallback: ensure cleanup even if afterprint fails to fire.
+      setTimeout(()=>{ if(vitaminsState.active) cleanup(); }, 500);
+    }, 60);
   }
 /**
  * createShareLink() → URL string with #s= payload containing base64-encoded JSON state.
