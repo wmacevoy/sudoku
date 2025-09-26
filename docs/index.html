@@ -30,23 +30,51 @@
   <!-- Visuals for screen + print; grid and overlay dimensions are JS-aligned. -->
 <style>
     :root{
-      --bg:#0b0c0f; --panel:#111318; --ink:#e8ecf1; --muted:#7a8aa1;
-      --accent:#60a5fa; --danger:#f87171; --ok:#34d399; --grid:#1f2430; --bold:#e2e8f0;
-      --arrow:#f59e0b; --box:#334155; --hl:#1d4ed8; --note:#a78bfa;
+      --bg:#0b0c0f;
+      --header:#0e1218;
+      --panel:#111318;
+      --surface:#0b1420;
+      --surface-filled:#0b1020;
+      --ink:#e8ecf1;
+      --muted:#7a8aa1;
+      --accent:#60a5fa;
+      --danger:#f87171;
+      --ok:#34d399;
+      --grid:#1f2430;
+      --bold:#e2e8f0;
+      --arrow:#f59e0b;
+      --box:#334155;
+      --hl:#1d4ed8;
+      --note:#a78bfa;
+      --border:#0f172a;
+      --control-bg:#0f172a;
+      --control-border:#1f2937;
+      --control-border-hover:#334155;
+      --primary-action:#1e293b;
+      --warn-bg:#1f1a1a;
+      --warn-border:#3f2525;
+      --warn-ink:#fecaca;
+      --stack-bg:#0d121e;
+      --stack-ink:#9fb3c8;
+      --stack-border:#14213a;
+      --input-bg:#0c1320;
+      --input-border:#23314a;
+      --input-ink:#dbe7f3;
+      --textarea-bg:#0c1120;
     }
     *{box-sizing:border-box}
-    body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial; color:var(--ink); background:#0b0c0f}
-    header{padding:18px 16px; display:flex; gap:12px; align-items:center; justify-content:space-between; background:#0e1218; border-bottom:1px solid #0f172a}
+    body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial; color:var(--ink); background:var(--bg)}
+    header{padding:18px 16px; display:flex; gap:12px; align-items:center; justify-content:space-between; background:var(--header); border-bottom:1px solid var(--border)}
     h1{font-size:18px; margin:0; font-weight:600; letter-spacing:.2px}
     .wrap{max-width:1200px; margin:0 auto; padding:18px; display:grid; grid-template-columns: 1fr 380px; gap:18px}
     @media (max-width: 980px){ .wrap{grid-template-columns:1fr} }
 
     /* Board */
     .board-wrap{position:relative; display:flex; align-items:center; justify-content:center;}
-    .board{width:min(92vw, 760px); aspect-ratio:1/1; background:#0b1420; border-radius:16px; padding:16px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 0 1px #0f172a; position:relative}
+    .board{width:min(92vw, 760px); aspect-ratio:1/1; background:var(--surface); border-radius:16px; padding:16px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 0 1px var(--border); position:relative}
     .grid{display:grid; grid-template-columns: repeat(9,1fr); grid-template-rows: repeat(9,1fr); width:100%; height:100%; position:relative;}
     .cell{position:relative; border:1px solid var(--grid);}    
-    .cell.filled{background:#0b1020}
+    .cell.filled{background:var(--surface-filled)}
     /* 3×3 blocks — visible on WEB */
     .cell[data-col="1"], .cell[data-col="4"], .cell[data-col="7"]{border-left-width:4px; border-left-color:var(--bold)}
     .cell[data-col="9"]{border-right-width:4px; border-right-color:var(--bold)}
@@ -71,17 +99,18 @@
     .cand.hidden-single{ outline:2px solid var(--ok); color:var(--ok); font-weight:800; }
     .cand:hover{outline:1px solid var(--accent); color:var(--ink)}
 
-    .controls{background:var(--panel); border-radius:14px; padding:12px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 1px #0f172a; display:flex; flex-direction:column; gap:12px}
+    .controls{background:var(--panel); border-radius:14px; padding:12px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 1px var(--border); display:flex; flex-direction:column; gap:12px}
     .controls h2{margin:0 0 6px 0; font-size:16px}
     .legend{height:72px; overflow:auto}
     .toolbar{display:flex; flex-wrap:wrap; gap:8px}
     label.cb{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted)}
     input[type="checkbox"]{transform:scale(1.1)}
-    select{background:#0f172a; color:var(--ink); border:1px solid #1f2937; padding:8px 10px; border-radius:10px}
-    button{background:#0f172a; color:var(--ink); border:1px solid #1f2937; padding:9px 12px; border-radius:10px; cursor:pointer}
-    button:hover{border-color:#334155}
-    button.primary{background:#1e293b}
-    button.warn{background:#1f1a1a; border-color:#3f2525; color:#fecaca}
+    select, button{background:var(--control-bg); color:var(--ink); border:1px solid var(--control-border); border-radius:10px}
+    select{padding:8px 10px}
+    button{padding:9px 12px; cursor:pointer}
+    button:hover{border-color:var(--control-border-hover)}
+    button.primary{background:var(--primary-action)}
+    button.warn{background:var(--warn-bg); border-color:var(--warn-border); color:var(--warn-ink)}
 
     /* Emphasize key toolbar actions */
     #btn-print{ border: 2px solid var(--ink); font-weight:800 }
@@ -89,18 +118,19 @@
     #btn-why:hover{ border-color: var(--ok) }
 
     .stack{display:flex; flex-direction:column; gap:8px; max-height:340px; overflow:auto}
-    .stack-item{display:flex; flex-direction:column; gap:8px; padding:8px 10px; background:#0d121e; color:#9fb3c8; box-shadow: inset 0 0 0 1px #14213a; border-radius:10px; font-size:13px}
+    .stack-item{display:flex; flex-direction:column; gap:8px; padding:8px 10px; background:var(--stack-bg); color:var(--stack-ink); box-shadow: inset 0 0 0 1px var(--stack-border); border-radius:10px; font-size:13px}
     .stack-row{display:flex; align-items:center; justify-content:space-between; gap:8px}
-    .stack-item input.note{width:100%; padding:7px 9px; border-radius:8px; border:1px solid #23314a; background:#0c1320; color:#dbe7f3}
+    .stack-item input.note{width:100%; padding:7px 9px; border-radius:8px; border:1px solid var(--input-border); background:var(--input-bg); color:var(--input-ink)}
 
     .share-pane{display:flex; flex-direction:column; gap:8px}
     .share-actions{display:flex; flex-wrap:wrap; gap:8px}
-    textarea{width:100%; min-height:360px; resize:vertical; padding:10px; background:#0c1120; color:#dbe7f3; border:1px solid #14213a; border-radius:10px; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;}
+    textarea{width:100%; min-height:360px; resize:vertical; padding:10px; background:var(--textarea-bg); color:var(--input-ink); border:1px solid var(--stack-border); border-radius:10px; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;}
 
     /* SVG overlay sits exactly over the GRID; JS sets its size/position to match grid */
     .overlay{position:absolute; pointer-events:none; left:0; top:0; width:0; height:0;}
 
     /* Hidden on screen, shown on print */
+    .print-title{display:none; text-align:center; margin:12px 0; font-size:18px; font-weight:600;}
     .print-qr{display:none}
 
     @media print{
@@ -121,6 +151,7 @@
       .cell[data-col="9"]{border-right-width:3px}
       .cell[data-row="1"], .cell[data-row="4"], .cell[data-row="7"]{border-top-width:3px}
       .cell[data-row="9"]{border-bottom-width:3px}
+      .print-title{display:block !important; margin:0 0 12px 0; font-size:18pt; font-weight:700;}
       /* Show QR section on print */
       .print-qr{display:flex !important; align-items:center; gap:12px; border:1px solid #000; padding:8px; border-radius:8px; margin:12px 18px 0 18px; break-inside: avoid; page-break-inside: avoid;}
       .print-qr img{width:120px; height:120px}
@@ -144,6 +175,7 @@
       <button id="btn-reset" class="warn">Reset</button>
     </div>
   </header>
+  <div id="printTitle" class="print-title" aria-hidden="true">Intentional Sudoku - Medium</div>
   <!-- Layout: board (left) + controls/I-O (right) -->
 <main class="wrap">
     <section class="board-wrap">
@@ -213,6 +245,8 @@
   const importShareBtn=document.getElementById('btn-import-share');
   const helpToggle = document.getElementById('helpToggle');
   const selDiff = document.getElementById('sel-diff');
+  const diffLabels = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+  const printTitleEl = document.getElementById('printTitle');
   let showHelp = helpToggle.checked;
   const DEFAULT_LEGEND = 'Hover or tap a pencil mark to see the reasoning. Double-click or double-tap to place.';
 
@@ -355,6 +389,21 @@
 /** updateShareText() — keep the Share textarea synced to the current board only */
 
   function updateShareText(){ shareTextEl.value = toASCII(false); }
+/** difficultyLabel(val) — map stored difficulty to human-friendly label */
+
+  function difficultyLabel(val){
+    if(!val) return 'Medium';
+    if(diffLabels[val]) return diffLabels[val];
+    return val.charAt(0).toUpperCase() + val.slice(1);
+  }
+/** updateDifficultyUI() — sync document title and print banner with difficulty */
+
+  function updateDifficultyUI(){
+    const label = difficultyLabel(selDiff.value);
+    const title = `Intentional Sudoku - ${label}`;
+    document.title = title;
+    if(printTitleEl) printTitleEl.textContent = title;
+  }
 /** Fisher–Yates shuffle in-place; returns the same array for chaining. */
 
   function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
@@ -729,7 +778,7 @@ function revertTo(idx){
   document.getElementById('btn-print').addEventListener('click', ()=>{ document.body.classList.toggle('print-hints', helpToggle.checked); window.print(); });
   document.getElementById('btn-why').addEventListener('click', ()=>{ window.open('why.html','_blank','noopener'); });
   helpToggle.addEventListener('change', ()=> { showHelp = helpToggle.checked; render(); scheduleSave(); });
-  selDiff.addEventListener('change', scheduleSave);
+  selDiff.addEventListener('change', ()=>{ updateDifficultyUI(); scheduleSave(); });
   document.getElementById('btn-reset').addEventListener('click', reset);
 
   // Keep overlay aligned on resize/zoom
@@ -772,7 +821,7 @@ function revertTo(idx){
  * restoreFromLocal() → boolean
  * Load prior session from localStorage; applies moves and options when found.
  */
-  function restoreFromLocal(){ try{ const s=localStorage.getItem('sudoku_state_v1'); if(!s) return false; const st=JSON.parse(s); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateShareText(); return true; }catch(_){ return false; } }
+  function restoreFromLocal(){ try{ const s=localStorage.getItem('sudoku_state_v1'); if(!s) return false; const st=JSON.parse(s); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateDifficultyUI(); render(); updateShareText(); return true; }catch(_){ return false; } }
 /** base64Encode(str) — UTF-8 safe btoa wrapper */
 
   function base64Encode(str){ return btoa(String.fromCharCode(...new TextEncoder().encode(str))); }
@@ -808,6 +857,7 @@ function revertTo(idx){
     loadBoard(final);
     if(typeof state.help === 'boolean'){ helpToggle.checked = state.help; showHelp = state.help; }
     if(state.diff){ selDiff.value = state.diff; }
+    updateDifficultyUI();
     render();
     updateShareText();
     return true;
@@ -820,7 +870,7 @@ function revertTo(idx){
  * restoreFromURL() → boolean
  * If location.hash has #s=..., decode & restore session.
  */
-  function restoreFromURL(){ const h=location.hash; if(!h || !h.startsWith('#s=')) return false; try{ const b64=h.slice(3); const json=base64Decode(b64); const st=JSON.parse(json); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateShareText(); return true; }catch(_){ return false; } }
+  function restoreFromURL(){ const h=location.hash; if(!h || !h.startsWith('#s=')) return false; try{ const b64=h.slice(3); const json=base64Decode(b64); const st=JSON.parse(json); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateDifficultyUI(); render(); updateShareText(); return true; }catch(_){ return false; } }
 
   
 // ---------------------------------------------------------------------------
@@ -840,6 +890,7 @@ function revertTo(idx){
       newPuzzle('medium');
     }
   }
+  updateDifficultyUI();
   updateShareText();
 })();
 </script>
