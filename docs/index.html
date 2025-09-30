@@ -133,8 +133,9 @@
     /* Hidden on screen, shown on print */
     .print-title{display:none; text-align:center; margin:12px 0; font-size:18px; font-weight:600;}
     .print-qr{display:none}
-    #vitaminsSheet{display:none; padding:0; background:transparent; color:#000;}
-    #vitaminsSheet .vitamin-page{display:block; margin:0; padding:0 0 18px 0; break-inside: avoid-page; page-break-inside: avoid; -webkit-region-break-inside: avoid;}
+    #vitaminsSheet{display:none; padding:0; background:transparent; color:#000; overflow: visible;}
+    #vitaminsSheet .vitamin-page{display:block; margin:0; padding:0 0 18px 0; break-inside: avoid-page; page-break-inside: avoid; -webkit-region-break-inside: avoid; -webkit-column-break-inside: avoid; page-break-after: always;}
+    #vitaminsSheet .vitamin-page:last-child{page-break-after: auto;}
     #vitaminsSheet .vitamin-page + .vitamin-page{break-before: page; page-break-before: always;}
     #vitaminsSheet .vitamin-board-wrap{width:100%; display:block;}
     #vitaminsSheet .vitamin-board{width:95%; max-width:760px;}
@@ -160,7 +161,7 @@
     .vitamins-debug button:hover{border-color:var(--control-border-hover);}
 
     @media print{
-      @page{ size: letter portrait; margin: 0.5in; }
+      @page{ size: letter portrait; margin: 1in 0.5in 0.5in 0.5in; }
       body{background:#fff; color:#000}
       header, aside, .toolbar, .legend, .share-pane{display:none !important}
       .wrap{max-width:none; padding:0; display:block}
@@ -184,8 +185,9 @@
       .print-qr .txt{font-size:12pt}
       body.vitamins-mode #vitaminsSheet{display:block !important;}
       body.vitamins-mode{background:#fff;}
-      #vitaminsSheet{background:transparent !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
-      #vitaminsSheet .vitamin-page{break-inside: avoid-page; page-break-inside: avoid;}
+      #vitaminsSheet{background:transparent !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; overflow: visible !important;}
+      #vitaminsSheet .vitamin-page{break-inside: avoid-page; page-break-inside: avoid; -webkit-column-break-inside: avoid; page-break-after: always;}
+      #vitaminsSheet .vitamin-page:last-child{page-break-after: auto;}
       #vitaminsSheet .vitamin-page + .vitamin-page{break-before: page; page-break-before: always;}
     }
   </style>
@@ -1157,7 +1159,7 @@ function revertTo(idx){
       window.print();
       // Fallback: ensure cleanup even if afterprint fails to fire.
       setTimeout(()=>{ if(vitaminsState.active) cleanup(); }, 500);
-    }, 60);
+    }, 200);
   }
 /**
  * createShareLink() → URL string with #s= payload containing base64-encoded JSON state.
