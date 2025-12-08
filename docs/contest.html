@@ -17,8 +17,11 @@
     *{box-sizing:border-box;}
     body{margin:0; font-family:"Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:var(--bg); color:var(--ink); min-height:100vh; display:flex; flex-direction:column; gap:18px; padding:18px;}
     h1{margin:0 0 8px 0;}
-    .controls{background:var(--panel); border:1px solid #111827; border-radius:12px; padding:14px; display:grid; gap:12px;}
-    .row{display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;}
+    .controls{background:var(--panel); border:1px solid #111827; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:14px;}
+    .controls-header{display:flex; flex-direction:column; gap:6px;}
+    .control-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px;}
+    .option{background:var(--bg); border:1px solid var(--grid); border-radius:10px; padding:12px; display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+    .option h3{grid-column:1 / -1; margin:0 0 6px 0; font-size:14px; color:var(--ink); letter-spacing:0.2px;}
     label{font-size:13px; color:var(--muted); display:flex; flex-direction:column; gap:6px;}
     input[type="text"], input[type="number"]{background:var(--bg); color:var(--ink); border:1px solid var(--grid); border-radius:8px; padding:9px 10px; min-width:120px;}
     input[type="number"]{width:120px;}
@@ -53,10 +56,33 @@
     .p-cell[data-col="1"], .p-cell[data-col="4"], .p-cell[data-col="7"]{border-left:0.6mm solid #000;}
     .p-cell[data-col="9"]{border-right:0.6mm solid #000;}
     .p-cell[data-row="9"]{border-bottom:0.6mm solid #000;}
-    .puzzle-meta{display:flex; justify-content:space-between; align-items:center; font-size:13px; margin:0 auto 10px auto; max-width:900px;}
     .keys-title{margin:16px 0 8px 0; font-size:16px; font-weight:700; text-align:center;}
-    .page-footer{margin-top:10px; font-size:12px; text-align:center; color:#444;}
+    .page-footer{margin-top:14px; font-size:15px; color:#000; display:flex; flex-direction:column; gap:12px; padding:0 10mm;}
+    .footer-line{display:flex; align-items:center; gap:10px; margin:10mm 0;}
+    .footer-label{white-space:nowrap; font-weight:700;}
+    .footer-blank{flex:1; min-width:160px; border-bottom:1.5px solid #000; height:22px;}
+    .footer-blank.short{flex:0 0 200px;}
+    .judgement-options{display:flex; align-items:center; gap:14px;}
+    .judgement-choice{width:36px; height:36px; border:1.2px solid #000; border-radius:999px; display:flex; align-items:center; justify-content:center; padding:6px;}
+    .judgement-icon{width:22px; height:22px; object-fit:contain; filter:grayscale(1);}
     @media print{
+      /* Make the printed document independent of the on-screen controls/layout */
+      html, body{margin:0 !important; padding:0 !important; width:100% !important; height:auto !important;}
+      body{display:block !important; gap:0 !important; background:#fff !important;}
+      body > :not(#print-area){display:none !important;}
+      #print-area{display:block !important; margin:0 !important; padding:0 !important;}
+      /* Force white pages even when user enables "print backgrounds" */
+      *{
+        background:none !important;
+        box-shadow:none !important;
+      }
+      .page,
+      .p-grid,
+      .p-cell{
+        background:#fff !important;
+        color:#000 !important;
+      }
+      .p-grid{max-width:160mm;}
       @page { margin:12mm; }
       body{background:#fff; padding:0;}
       .controls{display:none !important;}
@@ -82,48 +108,53 @@
 </head>
 <body>
   <div class="controls">
-    <div>
+    <div class="controls-header">
       <h1>Sudoku Contest Generator</h1>
-      <div class="status" id="status">Set counts, generate, then print.</div>
+      <div class="status" id="status">Set counts, then Generate &amp; Print.</div>
+    </div>
+    <label>Contest title
+      <input id="contest-title" type="text" value="Sudoku" />
+    </label>
+    <div class="control-grid">
+      <div class="option">
+        <h3>Simple</h3>
+        <label>Count
+          <input id="count-simple" type="number" min="0" max="999" value="0" />
+        </label>
+        <label>Copies each
+          <input id="copies-simple" type="number" min="1" max="99" value="1" />
+        </label>
+      </div>
+      <div class="option">
+        <h3>Easy</h3>
+        <label>Count
+          <input id="count-easy" type="number" min="0" max="999" value="2" />
+        </label>
+        <label>Copies each
+          <input id="copies-easy" type="number" min="1" max="99" value="20" />
+        </label>
+      </div>
+      <div class="option">
+        <h3>Medium</h3>
+        <label>Count
+          <input id="count-medium" type="number" min="0" max="999" value="2" />
+        </label>
+        <label>Copies each
+          <input id="copies-medium" type="number" min="1" max="99" value="20" />
+        </label>
+      </div>
+      <div class="option">
+        <h3>Hard</h3>
+        <label>Count
+          <input id="count-hard" type="number" min="0" max="999" value="1" />
+        </label>
+        <label>Copies each
+          <input id="copies-hard" type="number" min="1" max="99" value="10" />
+        </label>
+      </div>
     </div>
     <div class="row">
-      <label>Contest title
-        <input id="contest-title" type="text" value="Sudoku" />
-      </label>
-      <label>Simple puzzles (max 26)
-        <input id="count-simple" type="number" min="0" max="26" value="0" />
-      </label>
-      <label>Copies each
-        <input id="copies-simple" type="number" min="1" max="99" value="1" />
-      </label>
-    </div>
-    <div class="row">
-      <label>Easy puzzles (max 26)
-        <input id="count-easy" type="number" min="0" max="26" value="2" />
-      </label>
-      <label>Copies each
-        <input id="copies-easy" type="number" min="1" max="99" value="20" />
-      </label>
-    </div>
-    <div class="row">
-      <label>Medium puzzles (max 26)
-        <input id="count-medium" type="number" min="0" max="26" value="2" />
-      </label>
-      <label>Copies each
-        <input id="copies-medium" type="number" min="1" max="99" value="20" />
-      </label>
-    </div>
-    <div class="row">
-      <label>Hard puzzles (max 26)
-        <input id="count-hard" type="number" min="0" max="26" value="1" />
-      </label>
-      <label>Copies each
-        <input id="copies-hard" type="number" min="1" max="99" value="10" />
-      </label>
-    </div>
-    <div class="row">
-      <button id="btn-generate">Generate puzzles</button>
-      <button id="btn-print" class="secondary">Print</button>
+      <button id="btn-print">Generate & Print</button>
       <button id="btn-practice" type="button" class="secondary" onclick="window.location.href='index.html'">Practice</button>
     </div>
   </div>
@@ -164,10 +195,21 @@
         .join('');
     }
 
+    function letterLabel(index) {
+      let n = index;
+      let label = '';
+      do {
+        label = String.fromCharCode(65 + (n % 26)) + label;
+        n = Math.floor(n / 26) - 1;
+      } while (n >= 0);
+      return label;
+    }
+
     function generateContest() {
       const title = titleInput.value.trim() || 'Sudoku';
+      let letterIndex = 0;
       const specs = Object.entries(inputs).map(([diff, cfg]) => {
-        const count = clampInt(cfg.count.value, 0, 26, 0);
+        const count = clampInt(cfg.count.value, 0, 999, 0);
         const copies = clampInt(cfg.copies.value, 1, 99, 1);
         cfg.count.value = String(count);
         cfg.copies.value = String(copies);
@@ -176,7 +218,7 @@
 
       const puzzles = [];
       for (const spec of specs) {
-        const capped = Math.min(spec.count, 26);
+        const capped = spec.count;
         for (let i = 0; i < capped; i++) {
           const puzzle = engine.createPuzzle(spec.diff);
           const solved = engine.solve(puzzle);
@@ -184,15 +226,15 @@
             i--;
             continue;
           }
-          const letter = String.fromCharCode(65 + i); // A-Z
+          const letter = letterLabel(letterIndex); // A, B, ..., Z, AA, AB...
           puzzles.push({
             diff: spec.diff,
-            diffLabel: spec.label,
             letter,
             puzzle,
             solution: solved.solution,
             copies: spec.copies
           });
+          letterIndex++;
         }
       }
 
@@ -207,13 +249,21 @@
         for (let copy = 1; copy <= p.copies; copy++) {
           blocks.push(`
             <div class="page">
-              <h2>${title}: Copy ${copy} of ${p.diffLabel} Puzzle ${p.letter}</h2>
-              <div class="puzzle-meta">
-                <div>${p.diffLabel}</div>
-                <div>Puzzle ${p.letter}</div>
-              </div>
+              <h2>${title}: Copy ${copy} of Puzzle ${p.letter}</h2>
               <div class="p-grid">${gridHTML(p.puzzle)}</div>
-              <div class="page-footer">No QR codes. One puzzle per page.</div>
+              <div class="page-footer">
+                <div class="footer-line"><span class="footer-label">Contestant(s):</span><span class="footer-blank"></span></div>
+                <div class="footer-line judgement-options">
+                  <span class="footer-label">Submit Time / Judgement:</span>
+                  <span class="footer-blank short"></span>
+                  <span class="judgement-choice" aria-label="Approved">
+                    <img class="judgement-icon" src="thumbs-up.svg" alt="Thumbs up" />
+                  </span>
+                  <span class="judgement-choice" aria-label="Rejected">
+                    <img class="judgement-icon" src="thumbs-down.svg" alt="Thumbs down" />
+                  </span>
+                </div>
+              </div>
             </div>
           `);
         }
@@ -222,11 +272,7 @@
       for (const p of puzzles) {
         blocks.push(`
           <div class="page">
-            <h2>${title}: KEY of ${p.diffLabel} Puzzle ${p.letter}</h2>
-            <div class="puzzle-meta">
-              <div>${p.diffLabel}</div>
-              <div>Solution</div>
-            </div>
+            <h2>${title}: Key for Puzzle ${p.letter}</h2>
             <div class="p-grid">${gridHTML(p.solution)}</div>
           </div>
         `);
@@ -236,12 +282,10 @@
       statusEl.textContent = `Generated ${puzzles.length} puzzles across ${puzzles.reduce((sum,p)=>sum+p.copies,0)} copies. Ready to print.`;
     }
 
-    document.getElementById('btn-generate').addEventListener('click', generateContest);
     document.getElementById('btn-print').addEventListener('click', () => {
-      if (!printArea.innerHTML.trim()) generateContest();
+      generateContest();
       window.print();
     });
   </script>
 </body>
 </html>
-
