@@ -1,0 +1,9 @@
+services:
+  tests:
+    build: .
+    image: sudoku-tests
+    working_dir: /usr/src/app
+    command: ["npm", "test", "--", "--test-reporter", "spec"]
+    environment:
+      # Keep stdout unbuffered so results stream to your terminal as they run.
+      - FORCE_COLOR=1

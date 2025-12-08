@@ -1,0 +1,12 @@
+{
+  "name": "sudoku",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0",
+    "selenium-webdriver": "^4.21.0"
+  }
+}

@@ -1,0 +1,30 @@
+Ashlesh, Patil, et al. “Role of Prefrontal Cortex during Sudoku Task: FNIRS Study.” Translational Neuroscience, vol. 11, no. 1, 3 Nov. 2020, pp. 419–427, https://doi.org/10.1515/tnsci-2020-0147. Accessed 26 Jan. 2021.
+Brooker, Heather, et al. “The relationship between the frequency of number-puzzle use and baseline cognitive function in a large online sample of adults aged 50 and over.” International Journal of Geriatric Psychiatry, volume 34, issue 7, July 2019, pp. 932-940, https://doi.org/10.1002/gps.5085.
+
+https://pmc.ncbi.nlm.nih.gov/articles/PMC8017158/
+Paper Notebooks vs. Mobile Devices: Brain Activation Differences During Memory Retrieval
+Keita Umejima 1, Takuya Ibaraki 2, Takahiro Yamazaki 2, Kuniyoshi L Sakai 1,*
+Author information
+Article notes
+Copyright and License information
+PMCID: PMC8017158  PMID: 33815075
+
+https://arxiv.org/abs/2506.08872
+Your Brain on ChatGPT: Accumulation of Cognitive Debt when Using an AI Assistant for Essay Writing Task
+
+Nataliya Kosmyna, Eugene Hauptmann, Ye Tong Yuan, Jessica Situ, Xian-Hao Liao, Ashly Vivian Beresnitzky, Iris Braunstein, Pattie Maes
+This study explores the neural and behavioral consequences of LLM-assisted essay writing. Participants were divided into three groups: LLM, Search Engine, and Brain-only (no tools). Each completed three sessions under the same condition. In a fourth session, LLM users were reassigned to Brain-only group (LLM-to-Brain), and Brain-only users were reassigned to LLM condition (Brain-to-LLM). A total of 54 participants took part in Sessions 1-3, with 18 completing session 4. We used electroencephalography (EEG) to assess cognitive load during essay writing, and analyzed essays using NLP, as well as scoring essays with the help from human teachers and an AI judge. Across groups, NERs, n-gram patterns, and topic ontology showed within-group homogeneity. EEG revealed significant differences in brain connectivity: Brain-only participants exhibited the strongest, most distributed networks; Search Engine users showed moderate engagement; and LLM users displayed the weakest connectivity. Cognitive activity scaled down in relation to external tool use. In session 4, LLM-to-Brain participants showed reduced alpha and beta connectivity, indicating under-engagement. Brain-to-LLM users exhibited higher memory recall and activation of occipito-parietal and prefrontal areas, similar to Search Engine users. Self-reported ownership of essays was the lowest in the LLM group and the highest in the Brain-only group. LLM users also struggled to accurately quote their own work. While LLMs offer immediate convenience, our findings highlight potential cognitive costs. Over four months, LLM users consistently underperformed at neural, linguistic, and behavioral levels. These results raise concerns about the long-term educational implications of LLM reliance and underscore the need for deeper inquiry into AI's role in learning.
+
+Quote:
+Brain connectivity systematically scaled down with the amount of external support: the
+Brain‑only group exhibited the strongest, widest‑ranging networks, Search Engine group
+showed intermediate engagement, and LLM assistance elicited the weakest overall coupling.
+Activations and connectivity were the most prominent in the Brain-Only group, which
+consistently exhibited the highest total dDTF connectivity across alpha, theta, and delta
+bands, particularly in temporo-parietal and frontal executive regions. This was followed by the
+Search Engine group, which demonstrated approximately 34-48% lower total connectivity
+across the brain depending on frequency band, especially in lower frequencies. The LLM group
+showed the least extensive connectivity, with up to 55% reduced total dDTF magnitude
+compared to the Brain-Only group in low-frequency semantic and monitoring networks.
+
+https://www.goodreads.com/book/show/9778945-the-shallows

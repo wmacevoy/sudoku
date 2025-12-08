@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+
+<!--
+  Intentional Sudoku
+  =======================================================
+  Purpose:
+    This single-page app helps humans *understand* Sudoku decisions.
+    It shows candidate pencil-marks, highlights hidden singles, and draws
+    simple lines/boxes that explain *why* a placement or elimination happens.
+
+  Key Concepts:
+    • board[r][c] in {0..9} (0=empty)
+    • candidates[r][c] = Set of possible digits for empty cells
+    • stack[] move history for undo (with optional notes)
+    • overlay SVG draws explanations aligned to grid
+
+  I/O:
+    • ASCII import/export (optionally with MOVES)
+    • Local autosave/restore
+    • Share link via URL hash (base64 JSON)
+
+  Shortcuts:
+    arrows/hjkl move • 1–9 place • . or 0 clear • U undo • P print • N new • S share
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Intentional Sudoku</title>
+  <!-- Visuals for screen + print; grid and overlay dimensions are JS-aligned. -->
+<style>
+    :root{
+      --bg:#0b0c0f;
+      --header:#0e1218;
+      --panel:#111318;
+      --surface:#0b1420;
+      --surface-filled:#0b1020;
+      --ink:#e8ecf1;
+      --muted:#7a8aa1;
+      --accent:#60a5fa;
+      --danger:#f87171;
+      --ok:#34d399;
+      --grid:#1f2430;
+      --bold:#e2e8f0;
+      --arrow:#f59e0b;
+      --box:#334155;
+      --hl:#1d4ed8;
+      --note:#a78bfa;
+      --border:#0f172a;
+      --control-bg:#0f172a;
+      --control-border:#1f2937;
+      --control-border-hover:#334155;
+      --primary-action:#1e293b;
+      --warn-bg:#1f1a1a;
+      --warn-border:#3f2525;
+      --warn-ink:#fecaca;
+      --stack-bg:#0d121e;
+      --stack-ink:#9fb3c8;
+      --stack-border:#14213a;
+      --input-bg:#0c1320;
+      --input-border:#23314a;
+      --input-ink:#dbe7f3;
+      --textarea-bg:#0c1120;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial; color:var(--ink); background:var(--bg)}
+    header{padding:18px 16px; display:flex; gap:12px; align-items:center; justify-content:space-between; background:var(--header); border-bottom:1px solid var(--border)}
+    h1{font-size:18px; margin:0; font-weight:600; letter-spacing:.2px}
+    .wrap{max-width:1200px; margin:0 auto; padding:18px; display:grid; grid-template-columns: 1fr 380px; gap:18px}
+    @media (max-width: 980px){ .wrap{grid-template-columns:1fr} }
+
+    /* Board */
+    .board-wrap{position:relative; display:flex; align-items:center; justify-content:center;}
+    .board{width:min(92vw, 760px); aspect-ratio:1/1; background:var(--surface); border-radius:16px; padding:16px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 0 1px var(--border); position:relative}
+    .grid{display:grid; grid-template-columns: repeat(9,1fr); grid-template-rows: repeat(9,1fr); width:100%; height:100%; position:relative;}
+    .cell{position:relative; border:1px solid var(--grid);}    
+    .cell.filled{background:var(--surface-filled)}
+    /* 3×3 blocks — visible on WEB */
+    .cell[data-col="1"], .cell[data-col="4"], .cell[data-col="7"]{border-left-width:4px; border-left-color:var(--bold)}
+    .cell[data-col="9"]{border-right-width:4px; border-right-color:var(--bold)}
+    .cell[data-row="1"], .cell[data-row="4"], .cell[data-row="7"]{border-top-width:4px; border-top-color:var(--bold)}
+    .cell[data-row="9"]{border-bottom-width:4px; border-bottom-color:var(--bold)}
+
+    .cell.selected{ box-shadow: inset 0 0 0 2px var(--accent); }
+
+    /* Print override: hide the blue selected cell on printed page */
+    @media print {
+      .cell.selected{ box-shadow: none !important; }
+    }
+
+    .value{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size: clamp(20px, 4.2vw, 40px); font-weight:700; color:var(--bold)}
+
+    /* candidates layout 3x3 mini-grid (screen help mode) */
+    .cand-text{display:none;} /* hide text candidates on screen */
+    .cands{position:absolute; inset:2px; display:grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap:1px; padding:2px}
+    .cand{display:flex; align-items:center; justify-content:center; font-size:clamp(9px,1.8vw,15px); color:var(--ink); border-radius:4px; cursor:pointer; user-select:none; position:relative; touch-action: manipulation}
+    .cand.disabled{color: var(--muted)}
+    .cand.only{outline:2px solid var(--ink); font-weight:800; color:var(--ink); opacity:1}
+    .cand.hidden-single{ outline:2px solid var(--ok); color:var(--ok); font-weight:800; }
+    .cand:hover{outline:1px solid var(--accent); color:var(--ink)}
+
+    .controls{background:var(--panel); border-radius:14px; padding:12px; box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 1px var(--border); display:flex; flex-direction:column; gap:12px}
+    .controls h2{margin:0 0 6px 0; font-size:16px}
+    .legend{height:72px; overflow:auto}
+    .toolbar{display:flex; flex-wrap:wrap; gap:8px}
+    label.cb{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted)}
+    input[type="checkbox"]{transform:scale(1.1)}
+    select, button{background:var(--control-bg); color:var(--ink); border:1px solid var(--control-border); border-radius:10px}
+    select{padding:8px 10px}
+    button{padding:9px 12px; cursor:pointer}
+    .toolbar input[type="number"]{background:var(--control-bg); color:var(--ink); border:1px solid var(--control-border); border-radius:10px; padding:8px 10px; width:72px}
+    button:hover{border-color:var(--control-border-hover)}
+    button.primary{background:var(--primary-action)}
+    button.warn{background:var(--warn-bg); border-color:var(--warn-border); color:var(--warn-ink)}
+
+    /* Emphasize key toolbar actions */
+    #btn-print{ border: 2px solid var(--ink); font-weight:800 }
+    #btn-why{ border:2px solid var(--ok); color:var(--ok); font-weight:800 }
+    #btn-why:hover{ border-color: var(--ok) }
+
+    .stack{display:flex; flex-direction:column; gap:8px; max-height:340px; overflow:auto}
+    .stack-item{display:flex; flex-direction:column; gap:8px; padding:8px 10px; background:var(--stack-bg); color:var(--stack-ink); box-shadow: inset 0 0 0 1px var(--stack-border); border-radius:10px; font-size:13px}
+    .stack-row{display:flex; align-items:center; justify-content:space-between; gap:8px}
+    .stack-item input.note{width:100%; padding:7px 9px; border-radius:8px; border:1px solid var(--input-border); background:var(--input-bg); color:var(--input-ink)}
+
+    .share-pane{display:flex; flex-direction:column; gap:8px}
+    .share-actions{display:flex; flex-wrap:wrap; gap:8px}
+    textarea{width:100%; min-height:360px; resize:vertical; padding:10px; background:var(--textarea-bg); color:var(--input-ink); border:1px solid var(--stack-border); border-radius:10px; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;}
+
+    /* SVG overlay sits exactly over the GRID; JS sets its size/position to match grid */
+    .overlay{position:absolute; pointer-events:none; left:0; top:0; width:0; height:0;}
+
+    /* Hidden on screen, shown on print */
+    .print-title{display:none; text-align:center; margin:12px 0; font-size:18px; font-weight:600;}
+    .print-qr{display:none}
+    #vitaminsSheet{display:none; padding:0; background:transparent; color:#000; overflow: visible;}
+    #vitaminsSheet .vitamin-page{display:block; margin:0; padding:0 0 18px 0; break-inside: avoid-page; page-break-inside: avoid; -webkit-region-break-inside: avoid; -webkit-column-break-inside: avoid; page-break-after: always;}
+    #vitaminsSheet .vitamin-page:last-child{page-break-after: auto;}
+    #vitaminsSheet .vitamin-page + .vitamin-page{break-before: page; page-break-before: always;}
+    #vitaminsSheet .vitamin-board-wrap{width:100%; display:block;}
+    #vitaminsSheet .vitamin-board{width:95%; max-width:760px;}
+    #vitaminsSheet .vitamin-board .cell{background:#fff; color:#000;}
+    #vitaminsSheet .vitamin-board .value{color:#000; font-size: clamp(26px, 5vw, 52px);}
+    #vitaminsSheet .vitamin-board .cand-text{font-size:10px; line-height:1.1; color:#000; text-align:left; white-space:normal;}
+    #vitaminsSheet .vitamin-qr{width:95%; max-width:760px; margin:12px auto 0 auto;}
+    body.vitamins-mode #vitaminsSheet .print-qr{display:flex; align-items:center; gap:12px; border:1px solid #000; padding:8px; border-radius:8px; margin:12px auto 0 auto;}
+    body.vitamins-mode{background:#fff; color:#000;}
+    body.vitamins-mode header,
+    body.vitamins-mode main,
+    body.vitamins-mode #printTitle,
+    body.vitamins-mode > .print-qr{display:none !important;}
+    body.vitamins-mode #vitaminsSheet{display:block;}
+    .vitamins-debug{display:none; margin:24px 18px; padding:16px; border:1px solid var(--border); border-radius:12px; background:rgba(15,23,42,0.35);}
+    body.vitamins-mode .vitamins-debug{display:none !important;}
+    .vitamins-debug.visible{display:block;}
+    .vitamins-debug h2{margin:0 0 8px 0; font-size:16px;}
+    .vitamins-debug p{margin:0 0 12px 0; font-size:13px; color:var(--muted);}
+    .vitamins-debug textarea{width:100%; min-height:180px; padding:10px; border-radius:10px; border:1px solid var(--control-border); background:var(--textarea-bg); color:var(--input-ink); font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;}
+    .vitamins-debug .vitamins-debug-actions{display:flex; gap:12px; margin-top:12px; flex-wrap:wrap;}
+    .vitamins-debug button{padding:8px 12px; border-radius:10px; border:1px solid var(--control-border); background:var(--control-bg); color:var(--ink); cursor:pointer;}
+    .vitamins-debug button:hover{border-color:var(--control-border-hover);}
+
+    @media print{
+      @page{ size: letter portrait; margin: 1in 0.5in 0.5in 0.5in; }
+      body{background:#fff; color:#000}
+      header, aside, .toolbar, .legend, .share-pane{display:none !important}
+      .wrap{max-width:none; padding:0; display:block}
+      .board{width:95% !important; height:auto; aspect-ratio:1/1; background:#fff; box-shadow:none; padding:0; margin:0 auto}
+      .grid .cell{border-color:#000}
+      .cell{background:#fff !important; color:#000}
+      .cell.filled{background:#fff !important; color:#000 !important}
+      .value{color:#000; font-size: clamp(28px, 5vw, 52px)}
+      .cand, .cands{display:none}
+      body.print-hints .cand-text{display:block; position:absolute; top:4px; left:4px; right:4px; font-size:10px; line-height:1.1; color:black}
+      svg.overlay{display:none}
+      /* Ensure thick 3x3 in print too (3px is fine on paper) */
+      .cell[data-col="1"], .cell[data-col="4"], .cell[data-col="7"]{border-left-width:3px}
+      .cell[data-col="9"]{border-right-width:3px}
+      .cell[data-row="1"], .cell[data-row="4"], .cell[data-row="7"]{border-top-width:3px}
+      .cell[data-row="9"]{border-bottom-width:3px}
+      .print-title{display:block !important; margin:0 0 12px 0; font-size:18pt; font-weight:700;}
+      /* Show QR section on print */
+      .print-qr{display:flex !important; align-items:center; gap:12px; border:1px solid #000; padding:8px; border-radius:8px; margin:12px 18px 0 18px; break-inside: avoid; page-break-inside: avoid;}
+      .print-qr img{width:120px; height:120px}
+      .print-qr .txt{font-size:12pt}
+      body.vitamins-mode #vitaminsSheet{display:block !important;}
+      body.vitamins-mode{background:#fff;}
+      #vitaminsSheet{background:transparent !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; overflow: visible !important;}
+      #vitaminsSheet .vitamin-page{break-inside: avoid-page; page-break-inside: avoid; -webkit-column-break-inside: avoid; page-break-after: always;}
+      #vitaminsSheet .vitamin-page:last-child{page-break-after: auto;}
+      #vitaminsSheet .vitamin-page + .vitamin-page{break-before: page; page-break-before: always;}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Intentional Sudoku</h1>
+    <div class="toolbar">
+      <label class="cb"><input type="checkbox" id="helpToggle" checked> Help Me</label>
+      <button id="btn-print">Print</button>
+      <button id="btn-why" title="Open the guided discussion (why.html)">Why?</button>
+      <button id="btn-new">New Puzzle</button>
+      <select id="sel-diff">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+      <input id="vitaminsCount" type="number" min="1" max="99" value="9" aria-label="Vitamins count" title="How many vitamins pages to generate (1–99)" />
+      <button id="btn-vitamins" class="primary">Vitamins</button>
+    </div>
+  </header>
+  <div id="printTitle" class="print-title" aria-hidden="true">Intentional Sudoku - Medium</div>
+  <!-- Layout: board (left) + controls/I-O (right) -->
+<main class="wrap">
+    <section class="board-wrap">
+      <div class="board">
+        <div id="grid" class="grid" role="grid" aria-label="Sudoku grid"></div>
+        <svg id="overlay" class="overlay" viewBox="0 0 10 10" preserveAspectRatio="none">
+          <defs>
+            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L6,3 z" fill="var(--arrow)" />
+            </marker>
+          </defs>
+        </svg>
+      </div>
+    </section>
+    <aside class="controls">
+      <h2>Share</h2>
+      <div class="share-pane">
+        <div class="share-actions">
+          <button id="btn-copy-link">Copy Link</button>
+          <button id="btn-copy-plaintext">Copy Plaintext</button>
+          <button id="btn-import-share">Import</button>
+        </div>
+        <textarea id="share-text" rows="18"></textarea>
+      </div>
+      <h2>Undo Stack</h2>
+      <div class="stack" id="stack"></div>
+      <h2>Reasoning</h2>
+      <div id="legend" class="legend">Hover or tap a pencil mark to see the reasoning. Double‑click or double‑tap to place. Keys: arrows/hjkl to move, 1–9 to place, . or 0 to clear, U undo, P print, N new, S share.</div>
+    </aside>
+  </main>
+  <section class="print-qr" aria-label="QR code to play online">
+    <img src="qr.png" alt="QR code for intentionalsudoku.com">
+    <div class="txt">
+      <div><strong>No ads or tracking:</strong> online or (better) print and play offline.</div>
+      <div>intentionalsudoku.com</div>
+    </div>
+  </section>
+
+  <div id="vitaminsSheet" aria-hidden="true"></div>
+
+  <section id="vitaminsDebugPanel" class="vitamins-debug" aria-live="polite">
+    <h2>Vitamins Debug</h2>
+    <p>This diagnostic dump captures the generated vitamins pages. Share it if print layout misbehaves.</p>
+    <textarea id="vitaminsDebugText" readonly></textarea>
+    <div class="vitamins-debug-actions">
+      <button id="btnDownloadVitaminsDebug" type="button">Download Debug JSON</button>
+      <button id="btnClearVitaminsDebug" type="button">Clear</button>
+    </div>
+  </section>
+
+<script>
+/**
+ * JAVASCRIPT OVERVIEW
+ * ===================
+ * Sections in this script:
+ *   1) Constants, DOM refs, app state (board, candidates, stack, selection)
+ *   2) Utilities (2D arrays, cloning, unit helpers)
+ *   3) Grid I/O (ASCII import/export; MOVES parse/format; rewind)
+ *   4) Core mutators (eliminate, place, revertTo) + undo stack
+ *   5) Overlay (measurements, arrows/boxes, legend)
+ *   6) Generator & uniqueness check (generateFull, countSolutions, newPuzzle)
+ *   7) Rendering (build cells + candidates + stack pane)
+ *   8) Events (mouse, keyboard, resize), logging, autosave/share
+ *   9) Bootstrap (restore from URL/local or start fresh)
+ *
+ * Convention:
+ *   - All state changes go through `place()` (or `reset()` / `clearBoard()`).
+ *   - Keep helpers pure; let mutators centralize side-effects + logging + save.
+ */
+(() => {
+  const N=9; const DIGITS=[1,2,3,4,5,6,7,8,9];
+  const gridEl=document.getElementById('grid');
+  const overlaySvg=document.getElementById('overlay');
+  const stackEl=document.getElementById('stack');
+  const legendEl=document.getElementById('legend');
+  const shareTextEl=document.getElementById('share-text');
+  const copyLinkBtn=document.getElementById('btn-copy-link');
+  const copyPlainBtn=document.getElementById('btn-copy-plaintext');
+  const importShareBtn=document.getElementById('btn-import-share');
+  const helpToggle = document.getElementById('helpToggle');
+  const selDiff = document.getElementById('sel-diff');
+  const diffLabels = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+  const printTitleEl = document.getElementById('printTitle');
+  const vitaminsCountInput = document.getElementById('vitaminsCount');
+  const urlParams = new URLSearchParams(window.location.search);
+  const debugEnabled = urlParams.get('debug') === 'true';
+  const vitaminsDebugPanel = document.getElementById('vitaminsDebugPanel');
+  const vitaminsDebugText = document.getElementById('vitaminsDebugText');
+  const vitaminsDebugDownloadBtn = document.getElementById('btnDownloadVitaminsDebug');
+  const vitaminsDebugClearBtn = document.getElementById('btnClearVitaminsDebug');
+  let showHelp = helpToggle.checked;
+  const DEFAULT_LEGEND = 'Hover or tap a pencil mark to see the reasoning. Double-click or double-tap to place.';
+  let vitaminsDebugData = null;
+
+  // Seeded RNG utilities for deterministic generation (testability)
+  // ---------------------------------------------------------------
+  function cyrb128(str){
+    let h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
+    for(let i=0;i<str.length;i++){
+      const k = str.charCodeAt(i);
+      h1 = (h2 ^ Math.imul(h1 ^ k, 597399067))>>>0;
+      h2 = (h3 ^ Math.imul(h2 ^ k, 2869860233))>>>0;
+      h3 = (h4 ^ Math.imul(h3 ^ k, 951274213))>>>0;
+      h4 = (h1 ^ Math.imul(h4 ^ k, 2716044179))>>>0;
+    }
+    h1 = Math.imul(h3 ^ (h1>>>18), 597399067)>>>0;
+    h2 = Math.imul(h4 ^ (h2>>>22), 2869860233)>>>0;
+    h3 = Math.imul(h1 ^ (h3>>>17), 951274213)>>>0;
+    h4 = Math.imul(h2 ^ (h4>>>19), 2716044179)>>>0;
+    return [h1, h2, h3, h4];
+  }
+  function sfc32(a,b,c,d){
+    return function(){
+      a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0;
+      let t = (a + b) | 0;
+      a = (b ^ (b >>> 9)) >>> 0;
+      b = (c + (c << 3)) | 0; b >>>= 0;
+      c = ((c << 21) | (c >>> 11)) >>> 0;
+      d = (d + 1) | 0; d >>>= 0;
+      t = (t + d) | 0; t >>>= 0;
+      c = (c + t) | 0; c >>>= 0;
+      return (t >>> 0) / 4294967296;
+    };
+  }
+  let RNG = Math.random; // default
+  let rngSeed = null;
+  function setRNGSeed(seed){
+    const s = String(seed);
+    const [a,b,c,d] = cyrb128(s);
+    RNG = sfc32(a,b,c,d);
+    rngSeed = s;
+  }
+  
+  // Model
+  let board = make2D(N,N,0);      // 0=empty else 1..9
+  let candidates = make2D(N,N,() => new Set(DIGITS));
+  let stack = [];
+  let initialBoard = null;
+  let selected = {r:0,c:0};
+  let actionLog = [];
+  let saveT = null;
+  const vitaminsState = { active:false, afterPrintHandler:null, prevPrintHints:false };
+
+  // Utils
+/** nowISO() → ISO 8601 timestamp string */
+  function nowISO(){ return new Date().toISOString(); }
+/**
+ * make2D(R,C,init) → R×C array
+ * init: value or function (r,c)=>value
+ */
+  function make2D(R,C,init){ return Array.from({length:R}, (_,r)=> Array.from({length:C}, (_,c)=> typeof init==='function' ? init(r,c) : init)); }
+  const unitCells = {
+    row: r => DIGITS.map((_,c)=> [r,c]),
+    col: c => DIGITS.map((_,r)=> [r,c]),
+    box: b => { const R = Math.floor(b/3)*3, C = (b%3)*3; const a=[]; for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) a.push([R+dr,C+dc]); return a; }
+  };
+/** cloneBoard(b) → deep copy of 9×9 number grid */
+  function cloneBoard(b){ return b.map(r=> r.slice()); }
+/** cloneCands(cs) → deep copy of 9×9 Set-of-digits grid */
+  function cloneCands(cs){ return cs.map(row=> row.map(set=> new Set([...set]))); }
+/**
+ * reset()
+ * Full reset to empty board; clears stack; re-renders; updates ASCII; autosaves.
+ */
+
+  function reset(){ board = make2D(N,N,0); candidates = make2D(N,N,() => new Set(DIGITS)); stack=[]; initialBoard = cloneBoard(board); render(); updateShareText(); log({type:'reset'}); scheduleSave(); }
+/**
+ * clearBoard()
+ * Clears grid & candidates (keeps UI selections). Useful before import.
+ */
+  function clearBoard(){ board = make2D(N,N,0); candidates = make2D(N,N,() => new Set(DIGITS)); stack=[]; render(); updateShareText(); log({type:'clear'}); scheduleSave(); }
+
+  // === ASCII helpers (grid only) ===
+/**
+ * gridToASCII(board) → string
+ * Render a bordered 9×9 ASCII grid for print/share.
+ */
+  function gridToASCII(b){
+    const cell = (v)=> v? ` ${v} ` : ' . ';
+    const groupLen = 9; // 3 cells × 3 chars = 9 hyphens per group
+    const MAJOR = `+${'-'.repeat(groupLen)}+${'-'.repeat(groupLen)}+${'-'.repeat(groupLen)}+`;
+    let out='';
+    for(let r=0;r<9;r++){
+      if(r%3===0) out+=MAJOR+'\n';
+      let line='|';
+      for(let c=0;c<9;c++){
+        line += cell(b[r][c]);
+        if(c%3===2) line+='|';
+      }
+      out+=line+'\n';
+    }
+    out+=MAJOR;
+    return out;
+  }
+/**
+ * parseGridFromLines(lines[]) → number[9][9]
+ * Accepts bordered or compact ASCII; '.', '0', '?' are blanks. Validates shape.
+ */
+  function parseGridFromLines(lines){
+    const digits=[];
+    for(const raw of lines){
+      const l = raw.trim(); if(!l) continue;
+      if(l[0]==='+'||l[0]==='-') continue; // skip border rows
+      if(l[0]==='|'||/[.0-9]/.test(l[0])){
+        const row=[]; for(const ch of l){
+          if(/[\|\s]/.test(ch)) continue; // skip bars/spaces
+          if(ch==='.'||ch==='0'||ch==='?') row.push(0); else if(/[1-9]/.test(ch)) row.push(Number(ch));
+        }
+        if(row.length) digits.push(row);
+      }
+    }
+    if(digits.length!==9 || digits.some(r=> r.length!==9)) throw new Error('Expecting 9 rows × 9 columns in ASCII grid.');
+    return digits;
+  }
+/**
+ * fromASCII(text) → number[9][9]
+ * Supports plain grid or SUDOKU-ASCII v1 with MOVE history.
+ * When a MOVES block is present, reconstruct initial grid then reapply moves.
+ */
+
+  function fromASCII(text){
+    if(/SUDOKU-ASCII\s*v1/i.test(text)){
+      const gridBlock = []; const moveBlock = []; let mode='';
+      for(const ln of text.split(/\r?\n/)){
+        const t=ln.trim();
+        if(/^GRID:?$/i.test(t)||/^FINAL:?$/i.test(t)){ mode='grid'; continue; }
+        if(/^MOVES:?$/i.test(t)){ mode='moves'; continue; }
+        if(/^END$/i.test(t)){ mode=''; continue; }
+        if(!t) continue;
+        if(mode==='grid') gridBlock.push(ln); else if(mode==='moves') moveBlock.push(ln);
+      }
+      const finalGrid = parseGridFromLines(gridBlock);
+      return cloneBoard(finalGrid);
+    }
+    return parseGridFromLines(text.split(/\r?\n/));
+  }
+/**
+ * toASCII(includeMoves=false) → string
+ * Optionally appends a MOVES section reconstructed from the undo stack.
+ */
+
+  function toASCII(includeMoves=false){
+    const gridTxt = gridToASCII(board);
+    if(!includeMoves || stack.length===0){ return gridTxt; }
+    const header = '### SUDOKU-ASCII v1\nGRID:\n';
+    const movesTxt = stack.map((m,i)=> formatMoveLine(i,m)).join('\n');
+    return `${header}${gridTxt}\nMOVES:\n${movesTxt}\nEND`;
+  }
+/** formatMoveLine(i,m) → 'move NN: r= c= prev= val= [note=...]' */
+
+  function formatMoveLine(i,m){
+    const note = (m.note||'').replace(/\n/g,' ');
+    return `move ${String(i+1).padStart(2,'0')}: r=${m.r+1} c=${m.c+1} prev=${m.prev||0} val=${m.val||0}${note? ` note=${note}`:''}`;
+  }
+/** parseMoveLine(line) → {r,c,prev,val,note}|null */
+  function parseMoveLine(line){
+    const m = /r\s*=\s*(\d+)\s+c\s*=\s*(\d+)\s+prev\s*=\s*(\d+)\s+val\s*=\s*(\d+)(?:\s+note\s*=\s*(.*))?/i.exec(line);
+    if(!m) return null;
+    const [_, r,c,prev,val,note] = m;
+    return { r: (+r)-1, c:(+c)-1, prev:+prev, val:+val, note: note? note.trim(): '' };
+  }
+/**
+ * loadBoard(b)
+ * Replace board & recompute candidates by elimination of placed values.
+ */
+
+  function loadBoard(b){ board = cloneBoard(b); initialBoard = cloneBoard(b);
+    candidates = make2D(N,N,() => new Set(DIGITS));
+    for(let r=0;r<9;r++) for(let c=0;c<9;c++) if(board[r][c]) eliminate(r,c,board[r][c]);
+    stack=[]; render(); updateShareText(); }
+/** updateShareText() — keep the Share textarea synced to the current board only */
+
+  function updateShareText(){ shareTextEl.value = toASCII(false); }
+/** difficultyLabel(val) — map stored difficulty to human-friendly label */
+
+  function difficultyLabel(val){
+    if(!val) return 'Medium';
+    if(diffLabels[val]) return diffLabels[val];
+    return val.charAt(0).toUpperCase() + val.slice(1);
+  }
+/** updateDifficultyUI() — sync document title and print banner with difficulty */
+
+  function updateDifficultyUI(){
+    const label = difficultyLabel(selDiff.value);
+    const title = `Intentional Sudoku - ${label}`;
+    document.title = title;
+    if(printTitleEl) printTitleEl.textContent = title;
+  }
+/** computeCandidatesForBoard(b) — derive candidate sets for a given puzzle */
+
+  function computeCandidatesForBoard(b){
+    const cands = make2D(N,N,() => new Set(DIGITS));
+    for(let r=0;r<9;r++){
+      for(let c=0;c<9;c++){
+        const val = b[r][c];
+        if(!val) continue;
+        cands[r][c].clear();
+        for(let i=0;i<9;i++){ cands[r][i].delete(val); cands[i][c].delete(val); }
+        const R=Math.floor(r/3)*3, C=Math.floor(c/3)*3;
+        for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) cands[R+dr][C+dc].delete(val);
+      }
+    }
+    return cands;
+  }
+/** formatCandidatesForPrint(set) — pack digits into a single-line string */
+
+  function formatCandidatesForPrint(set){
+    return [...set].sort((a,b)=>a-b).join(' ');
+  }
+/** prepareVitaminsDebug(diff, includeHelp) — capture layout diagnostics */
+
+  function prepareVitaminsDebug(diff, includeHelp, requestedCount){
+    if(!debugEnabled || !vitaminsDebugText || !vitaminsDebugPanel) return;
+    const sheet = document.getElementById('vitaminsSheet');
+    if(!sheet) return;
+    const pages = Array.from(sheet.querySelectorAll('.vitamin-page'));
+    const layout = pages.map((page, idx)=>{
+      const rect = page.getBoundingClientRect();
+      const board = page.querySelector('.vitamin-board');
+      const boardRect = board ? board.getBoundingClientRect() : null;
+      return {
+        page: idx+1,
+        childTags: Array.from(page.children).map(ch => ch.tagName.toLowerCase()),
+        offsetHeight: page.offsetHeight,
+        scrollHeight: page.scrollHeight,
+        clientHeight: page.clientHeight,
+        rectHeight: rect ? Math.round(rect.height) : null,
+        rectWidth: rect ? Math.round(rect.width) : null,
+        boardRectHeight: boardRect ? Math.round(boardRect.height) : null,
+        boardRectWidth: boardRect ? Math.round(boardRect.width) : null
+      };
+    });
+    vitaminsDebugData = {
+      generatedAt: nowISO(),
+      difficulty: diff,
+      help: includeHelp,
+      seed: rngSeed || null,
+      requestedCount,
+      pageCount: pages.length,
+      layout,
+      html: sheet.innerHTML
+    };
+    const summary = {
+      generatedAt: vitaminsDebugData.generatedAt,
+      difficulty: diff,
+      help: includeHelp,
+      seed: rngSeed || null,
+      requestedCount,
+      pageCount: pages.length,
+      layout
+    };
+    vitaminsDebugText.value = JSON.stringify(summary, null, 2);
+    vitaminsDebugPanel.classList.add('visible');
+  }
+/** downloadVitaminsDebug() — export debug JSON */
+
+  function downloadVitaminsDebug(){
+    if(!debugEnabled){ return; }
+    if(!vitaminsDebugData){ alert('Run “81 Vitamins” first to capture diagnostics.'); return; }
+    const filename = `intentional-sudoku-vitamins-debug-${vitaminsDebugData.generatedAt.replace(/[:.]/g,'-')}.json`;
+    const blob = new Blob([JSON.stringify(vitaminsDebugData, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 0);
+  }
+/** clearVitaminsDebug() — hide diagnostics */
+
+  function clearVitaminsDebug(){
+    if(!debugEnabled){ return; }
+    vitaminsDebugData = null;
+    if(vitaminsDebugText) vitaminsDebugText.value='';
+    if(vitaminsDebugPanel) vitaminsDebugPanel.classList.remove('visible');
+  }
+/** buildQRSection() — clone base QR block for vitamins pages */
+
+  function buildQRSection(){
+    const template = document.querySelector('section.print-qr');
+    if(template){
+      const clone = template.cloneNode(true);
+      clone.classList.add('vitamin-qr');
+      return clone;
+    }
+    const section=document.createElement('section');
+    section.className='print-qr vitamin-qr';
+    const img=document.createElement('img');
+    img.src='qr.png';
+    img.alt='QR code for intentionalsudoku.com';
+    section.appendChild(img);
+    const txt=document.createElement('div');
+    txt.className='txt';
+    const line1=document.createElement('div');
+    line1.innerHTML='<strong>No ads or tracking:</strong> online or (better) print and play offline.';
+    const line2=document.createElement('div');
+    line2.textContent='intentionalsudoku.com';
+    txt.appendChild(line1);
+    txt.appendChild(line2);
+    section.appendChild(txt);
+    return section;
+  }
+/** buildVitaminBoard(board, includeHelp) — render a static board for vitamins sheet */
+
+  function buildVitaminBoard(boardData, includeHelp){
+    const wrap=document.createElement('div');
+    wrap.className='vitamin-board-wrap board-wrap';
+    const boardEl=document.createElement('div');
+    boardEl.className='board vitamin-board';
+    const grid=document.createElement('div');
+    grid.className='grid';
+    const cands = includeHelp ? computeCandidatesForBoard(boardData) : null;
+
+    for(let r=0;r<N;r++){
+      for(let c=0;c<N;c++){
+        const cell=document.createElement('div');
+        cell.className='cell';
+        cell.dataset.row=r+1;
+        cell.dataset.col=c+1;
+        const val = boardData[r][c];
+        if(val){
+          cell.classList.add('filled');
+          const valueEl=document.createElement('div');
+          valueEl.className='value';
+          valueEl.textContent=val;
+          cell.appendChild(valueEl);
+        } else if(includeHelp && cands){
+          const cand=document.createElement('div');
+          cand.className='cand-text';
+          cand.textContent=formatCandidatesForPrint(cands[r][c]);
+          cell.appendChild(cand);
+        }
+        grid.appendChild(cell);
+      }
+    }
+
+    boardEl.appendChild(grid);
+    wrap.appendChild(boardEl);
+    return wrap;
+  }
+/** Fisher–Yates shuffle in-place; returns the same array for chaining. */
+
+  function shuffle(a, rand=RNG){ for(let i=a.length-1;i>0;i--){ const j=(rand()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
+/**
+ * eliminate(r,c,val)
+ * Place `val` at (r,c) and remove it from the row, column, and 3×3 box candidates.
+ */
+
+  function eliminate(r,c,val){
+    board[r][c]=val; candidates[r][c].clear();
+    for(let i=0;i<9;i++){ candidates[r][i].delete(val); candidates[i][c].delete(val); }
+    const R=Math.floor(r/3)*3, C=Math.floor(c/3)*3;
+    for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) candidates[R+dr][C+dc].delete(val);
+  }
+/**
+ * place(r,c,val, push=true, note='')
+ * Canonical mutator. If val==0, recompute all candidates from scratch.
+ * Pushes undo frame when `push`, re-renders, logs, and schedules autosave.
+ */
+
+  function place(r,c,val, push=true, note=''){
+    if(board[r][c]===val) return;
+    const prev = board[r][c];
+    const prevCands = cloneCands(candidates);
+    if(val===0){
+      board[r][c]=0; candidates = make2D(N,N,() => new Set(DIGITS));
+      for(let rr=0;rr<9;rr++) for(let cc=0;cc<9;cc++) if(board[rr][cc]) eliminate(rr,cc,board[rr][cc]);
+    } else {
+      eliminate(r,c,val);
+    }
+    if(push) stack.push({r,c,prev, val, prevCands, note});
+    render();
+    updateShareText();
+    log({type:'place', r, c, prev, val, note});
+    scheduleSave();
+  }
+/**
+ * revertTo(idx) — Undo back to stack index `idx` (inclusive).
+ * Restores candidates snapshot when available.
+ */
+function revertTo(idx){
+  // Rebuild board from initialBoard + moves[0..idx-1], then recompute candidates.
+  if(idx == null || idx < 0) { idx = 0; }
+  if(!Array.isArray(stack) || idx > stack.length) return;
+
+  // Start from the recorded initial board if present; else from an empty grid.
+  const base = initialBoard ? cloneBoard(initialBoard) : make2D(N,N,0);
+
+  // Apply moves up to (but not including) idx to reconstruct state.
+  for(let i2=0; i2<idx; i2++){
+    const mv = stack[i2];
+    base[mv.r][mv.c] = mv.val;
+  }
+
+  // Copy rebuilt board and recompute candidates from scratch.
+  board = cloneBoard(base);
+  candidates = make2D(N,N,() => new Set(DIGITS));
+  for(let r=0;r<9;r++) for(let c=0;c<9;c++) if(board[r][c]) eliminate(r,c,board[r][c]);
+
+  // Truncate the stack
+  stack = stack.slice(0, idx);
+
+  // Clear overlay and legend
+  clearOverlay();
+  setLegend('');
+  render(); updateShareText();
+
+  log({type:'undo', toIndex: idx});
+  scheduleSave();
+}
+
+  // === Overlay alignment helpers ===
+/**
+ * syncOverlayToGrid()
+ * Align overlay SVG to the CSS grid bounds; called on render & resize.
+ */
+  function syncOverlayToGrid(){
+    const gRect = gridEl.getBoundingClientRect();
+    const bRect = gridEl.parentElement.getBoundingClientRect();
+    const left = gRect.left - bRect.left;
+    const top  = gRect.top  - bRect.top;
+    overlaySvg.style.left = left + 'px';
+    overlaySvg.style.top  = top  + 'px';
+    overlaySvg.style.width  = gRect.width + 'px';
+    overlaySvg.style.height = gRect.height + 'px';
+    overlaySvg.setAttribute('viewBox', `0 0 ${gRect.width} ${gRect.height}`);
+  }
+/** cellRectRel(r,c) → {x,y,w,h} relative to grid */
+
+  function cellRectRel(r,c){
+    const cell = gridEl.children[r*9+c];
+    const cr = cell.getBoundingClientRect();
+    const gr = gridEl.getBoundingClientRect();
+    return { x: cr.left - gr.left, y: cr.top - gr.top, w: cr.width, h: cr.height };
+  }
+/** centerOf(r,c) → {x,y} center point (for arrows) */
+  function centerOf(r,c){ const R = cellRectRel(r,c); return { x: R.x + R.w/2, y: R.y + R.h/2 }; }
+/**
+ * showHover(r,c,d)
+ * On candidate hover, draw conflicts (row/col/box) and highlight uniqueness lines/box.
+ * Updates legend with a terse “why” explanation.
+ */
+
+  function showHover(r,c,d){
+    clearOverlay();
+    syncOverlayToGrid();
+    const sel = centerOf(r,c);
+
+    const conflicts = [];
+    for(let i=0;i<9;i++){
+      if(board[r][i]===d){ const t=centerOf(r,i); drawLine(sel.x, sel.y, t.x, t.y, {endArrow:true}); conflicts.push(`r${r+1}c${i+1}`); }
+      if(board[i][c]===d){ const t=centerOf(i,c); drawLine(sel.x, sel.y, t.x, t.y, {endArrow:true}); conflicts.push(`r${i+1}c${c+1}`); }
+    }
+    const R0=Math.floor(r/3)*3, C0=Math.floor(c/3)*3;
+    for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) if(board[R0+dr][C0+dc]===d){ const t=centerOf(R0+dr, C0+dc); drawLine(sel.x, sel.y, t.x, t.y, {endArrow:true}); conflicts.push(`r${R0+dr+1}c${C0+dc+1}`); }
+
+    const counts = precomputeCounts();
+    const rowCount = counts.row[r][d];
+    const colCount = counts.col[c][d];
+    const boxIndex = Math.floor(r/3)*3 + Math.floor(c/3);
+    const boxCount = counts.box[boxIndex][d];
+
+    if(showHelp){
+      const W = overlaySvg.viewBox.baseVal.width || overlaySvg.clientWidth;
+      const H = overlaySvg.viewBox.baseVal.height || overlaySvg.clientHeight;
+      if(rowCount===1){ drawLine(0, sel.y, W, sel.y, {both:true}); }
+      if(colCount===1){ drawLine(sel.x, 0, sel.x, H, {both:true}); }
+      if(boxCount===1){
+        const tl = cellRectRel(R0, C0);
+        const br = cellRectRel(R0+2, C0+2);
+        const x=tl.x, y=tl.y, w=(br.x+br.w)-tl.x, h=(br.y+br.h)-tl.y;
+        drawBox(x, y, w, h);
+      }
+    }
+
+    // Explain
+    if(rowCount===1 || colCount===1 || boxCount===1){
+      const bits=[];
+      if(rowCount===1) bits.push(`only in row ${r+1}`);
+      if(colCount===1) bits.push(`only in col ${c+1}`);
+      if(boxCount===1) bits.push(`only in box ${Math.floor(r/3)+1},${Math.floor(c/3)+1}`);
+      setLegend(`Why: ${d} is ${bits.join(' & ')} for r${r+1}c${c+1}.`);
+    } else if(conflicts.length){
+      setLegend(`Conflicts for ${d} at r${r+1}c${c+1}: ${conflicts.slice(0,6).join(', ')}${conflicts.length>6? '…':''}`);
+    } else {
+      setLegend(`Candidate ${d} at r${r+1}c${c+1}.`);
+    }
+  }
+/**
+ * precomputeCounts() → {row[9][10], col[9][10], box[9][10]}
+ * Counts candidate availability by unit for hidden singles highlighting.
+ */
+
+  function precomputeCounts(){
+    const row = Array.from({length:9},()=> Array(10).fill(0));
+    const col = Array.from({length:9},()=> Array(10).fill(0));
+    const box = Array.from({length:9},()=> Array(10).fill(0));
+    for(let r=0;r<9;r++) for(let c=0;c<9;c++) if(board[r][c]===0){
+      const b = Math.floor(r/3)*3 + Math.floor(c/3);
+      for(const d of candidates[r][c]){ row[r][d]++; col[c][d]++; box[b][d]++; }
+    }
+    return {row,col,box};
+  }
+/** setLegend(text) — set right-pane explanation text */
+
+  function setLegend(text){ legendEl.textContent = text; }
+/** countCandidatesInRow(r,d) — helper (legacy) */
+
+  function countCandidatesInRow(r,d){ let n=0; for(let cc=0;cc<9;cc++) if(board[r][cc]===0 && candidates[r][cc].has(d)) n++; return n; }
+/** countCandidatesInCol(c,d) — helper (legacy) */
+  function countCandidatesInCol(c,d){ let n=0; for(let rr=0;rr<9;rr++) if(board[rr][c]===0 && candidates[rr][c].has(d)) n++; return n; }
+/** countCandidatesInBox(R,C,d) — helper (legacy) */
+  function countCandidatesInBox(R,C,d){ let n=0; for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++){ const rr=R+dr, cc=C+dc; if(board[rr][cc]===0 && candidates[rr][cc].has(d)) n++; } return n; }
+/** make2DZero() → 9×9 array filled with 0 */
+
+  function make2DZero(){ return Array.from({length:9}, ()=> Array(9).fill(0)); }
+/**
+ * generateFull() → complete valid Sudoku solution via backtracking (randomized).
+ */
+  function generateFull(){
+    const b = make2DZero();
+    function backtrack(){
+      let r=-1,c=-1; for(let i=0;i<9;i++){ for(let j=0;j<9;j++){ if(b[i][j]===0){ r=i;c=j; break; } } if(r!==-1) break; }
+      if(r===-1) return true;
+      const opts=shuffle([...DIGITS]);
+      for(const d of opts){
+        const used=new Set(); for(let i=0;i<9;i++){ if(b[r][i]) used.add(b[r][i]); if(b[i][c]) used.add(b[i][c]); }
+        const R=Math.floor(r/3)*3, C=Math.floor(c/3)*3; for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) if(b[R+dr][C+dc]) used.add(b[R+dr][C+dc]);
+        if(!used.has(d)){ b[r][c]=d; if(backtrack()) return true; b[r][c]=0; }
+      }
+      return false;
+    }
+    backtrack(); return b;
+  }
+/**
+ * countSolutions(board, limit=2) → number of solutions up to `limit` (used for uniqueness).
+ */
+  function countSolutions(b, limit=2){
+    b = cloneBoard(b);
+    let count=0;
+    function backtrack(){ if(count>=limit) return; let r=-1,c=-1; for(let i=0;i<9;i++){ for(let j=0;j<9;j++){ if(b[i][j]===0){ r=i;c=j; break; } } if(r!==-1) break; }
+      if(r===-1){ count++; return; }
+      const used=new Set(); for(let i=0;i<9;i++){ if(b[r][i]) used.add(b[r][i]); if(b[i][c]) used.add(b[i][c]); }
+      const R=Math.floor(r/3)*3, C=Math.floor(c/3)*3; for(let dr=0;dr<3;dr++) for(let dc=0;dc<3;dc++) if(b[R+dr][C+dc]) used.add(b[R+dr][C+dc]);
+      const opts=DIGITS.filter(d=>!used.has(d));
+      for(const d of opts){ b[r][c]=d; backtrack(); if(count>=limit) break; }
+      b[r][c]=0;
+    }
+    backtrack(); return count;
+  }
+/**
+ * createPuzzle(diff) — generate a new puzzle grid for the requested difficulty.
+ */
+  function createPuzzle(diff){
+    const targetClues = diff==='easy'? 40 : diff==='medium'? 32 : 26;
+    const solution = generateFull();
+    const puzzle = cloneBoard(solution);
+    let cells = shuffle(Array.from({length:81},(_,i)=>i));
+    let clues = 81;
+    for(const idx of cells){
+      if(clues<=targetClues) break;
+      const r=Math.floor(idx/9), c=idx%9;
+      const saved = puzzle[r][c];
+      puzzle[r][c]=0;
+      const copy=cloneBoard(puzzle);
+      if(countSolutions(copy,2)!==1){ puzzle[r][c]=saved; }
+      else { clues--; }
+    }
+    return puzzle;
+  }
+/**
+ * newPuzzle(diff) — use createPuzzle to refresh the live board.
+ */
+  function newPuzzle(diff){
+    const next = createPuzzle(diff);
+    loadBoard(next);
+    updateShareText();
+    log({type:'new', difficulty: diff});
+    scheduleSave();
+  }
+
+  // Rendering
+/**
+ * render() — Rebuild grid & overlay; draw candidates & hidden singles; rebuild stack view.
+ */
+  function render(){
+    gridEl.innerHTML='';
+    while(overlaySvg.lastChild) overlaySvg.removeChild(overlaySvg.lastChild);
+    const defs=document.createElementNS('http://www.w3.org/2000/svg','defs');
+    defs.innerHTML='<marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L6,3 z" fill="var(--arrow)" /></marker>';
+    overlaySvg.appendChild(defs);
+
+    // Precompute hidden singles counts
+    const counts = precomputeCounts();
+
+    for(let r=0;r<N;r++){
+      for(let c=0;c<N;c++){
+        const cell=document.createElement('div'); cell.className='cell'; cell.dataset.row=r+1; cell.dataset.col=c+1;
+        if(selected.r===r && selected.c===c) cell.classList.add('selected');
+        const val=board[r][c];
+        if(val!==0){
+          cell.classList.add('filled'); const v=document.createElement('div'); v.className='value'; v.textContent=val; cell.appendChild(v);
+          cell.addEventListener('click', ()=>{ selected={r,c}; place(r,c,0,true); updateShareText(); });
+        } else {
+          cell.addEventListener('click', ()=>{ selected={r,c}; render(); });
+          if(showHelp){
+            const can=candidates[r][c]; const cands=document.createElement('div'); cands.className='cands';
+            for(const d of DIGITS){
+              const mini=document.createElement('div'); mini.className='cand'; mini.textContent=d;
+              if(!can.has(d)) mini.classList.add('disabled');
+              const b = Math.floor(r/3)*3 + Math.floor(c/3);
+              const isHidden = showHelp && can.has(d) && (counts.row[r][d]===1 || counts.col[c][d]===1 || counts.box[b][d]===1);
+              if(can.size===1 && can.has(d)) mini.classList.add('only');
+              if(isHidden) mini.classList.add('hidden-single');
+              // Desktop hover for explanation
+              mini.addEventListener('mouseenter', ()=> showHover(r,c,d));
+              mini.addEventListener('mouseleave', ()=> { clearOverlay(); setLegend(DEFAULT_LEGEND); });
+              // Desktop single click: show explanation (do not place)
+              mini.addEventListener('click', (e)=>{ e.stopPropagation(); showHover(r,c,d); });
+              // Desktop double click: place if allowed
+              mini.addEventListener('dblclick', (e)=>{ e.preventDefault(); e.stopPropagation(); if(!can.has(d)) { showHover(r,c,d); return; } place(r,c,d,true); updateShareText(); });
+              // Touch/pen: single tap shows explanation; double-tap places
+              mini.addEventListener('pointerdown', (e)=>{
+                if(e.pointerType==='touch' || e.pointerType==='pen'){
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const now = Date.now();
+                  const last = mini._lastTap || 0;
+                  const threshold = 300;
+                  if(now - last < threshold){
+                    mini._lastTap = 0;
+                    if(can.has(d)) { place(r,c,d,true); updateShareText(); }
+                    else { showHover(r,c,d); }
+                  } else {
+                    mini._lastTap = now;
+                    showHover(r,c,d);
+                    setTimeout(()=>{ if(mini._lastTap && Date.now() - mini._lastTap >= threshold){ mini._lastTap = 0; } }, threshold+20);
+                  }
+                }
+              });
+              cands.appendChild(mini);
+            }
+            cell.appendChild(cands);
+          }
+          const txt=document.createElement('div'); txt.className='cand-text';
+          const canList=[...candidates[r][c]].sort((a,b)=>a-b).join(' ');
+          txt.textContent=canList; cell.appendChild(txt);
+        }
+        gridEl.appendChild(cell);
+      }
+    }
+
+    syncOverlayToGrid();
+
+    // stack
+    stackEl.innerHTML='';
+    if(stack.length===0){ const none=document.createElement('div'); none.className='stack-item'; none.textContent='No choices yet'; stackEl.appendChild(none); }
+    else { stack.forEach((ch,idx)=>{
+        const it=document.createElement('div'); it.className='stack-item';
+        const row=document.createElement('div'); row.className='stack-row';
+        row.innerHTML=`<span>r${ch.r+1}c${ch.c+1}: <em>${ch.prev||'·'}</em> → <strong>${board[ch.r][ch.c]||'·'}</strong></span>`;
+        const btn=document.createElement('button'); btn.textContent='Undo to here'; btn.addEventListener('click', ()=> revertTo(idx));
+        row.appendChild(btn);
+        const note=document.createElement('input'); note.className='note'; note.placeholder='note (e.g., trying 7 because row/box)'; note.value=ch.note||''; note.addEventListener('input', (e)=>{ ch.note = e.target.value; scheduleSave(); });
+        it.appendChild(row); it.appendChild(note); stackEl.appendChild(it);
+      }); }
+    // After stack is rendered, scroll moves pane to the bottom so the latest move is visible.
+    if(stackEl) stackEl.scrollTop = stackEl.scrollHeight;
+  }
+/** clearOverlay() — keep <defs> but remove drawn lines/boxes */
+
+  function clearOverlay(){ while(overlaySvg.childNodes.length>1) overlaySvg.removeChild(overlaySvg.lastChild); }
+/** drawLine(x1,y1,x2,y2,{endArrow=false,both=false}) — SVG arrow helper */
+
+  function drawLine(x1,y1,x2,y2,{endArrow=false,both=false}={}){
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('stroke', 'var(--arrow)'); line.setAttribute('stroke-width', '3');
+    line.setAttribute('stroke-linecap', 'round');
+    if(both){ line.setAttribute('marker-start', 'url(#arrowhead)'); line.setAttribute('marker-end', 'url(#arrowhead)'); }
+    else if(endArrow){ line.setAttribute('marker-end', 'url(#arrowhead)'); }
+    overlaySvg.appendChild(line);
+  }
+/** drawBox(x,y,w,h) — SVG rectangle helper for 3×3 box highlighting */
+
+  function drawBox(x,y,w,h){
+    const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x', x+1); rect.setAttribute('y', y+1);
+    rect.setAttribute('width', Math.max(0,w-2)); rect.setAttribute('height', Math.max(0,h-2));
+    rect.setAttribute('fill', 'none'); rect.setAttribute('stroke', 'var(--arrow)'); rect.setAttribute('stroke-width','3');
+    overlaySvg.appendChild(rect);
+  }
+
+  // Share & toolbar buttons
+  copyLinkBtn.addEventListener('click', ()=>{
+    const link = createShareLink();
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(link).then(()=> setLegend('Share link copied to clipboard.'), ()=>{
+        setLegend('Share link ready: ' + link);
+        window.prompt('Copy this share link:', link);
+      });
+    } else {
+      setLegend('Share link ready: ' + link);
+      window.prompt('Copy this share link:', link);
+    }
+  });
+  copyPlainBtn.addEventListener('click', ()=>{
+    const ascii = toASCII(false);
+    shareTextEl.value = ascii;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(ascii).then(()=> setLegend('Plaintext copied to clipboard.'), ()=> setLegend('Plaintext ready in the Share box.'));
+    } else {
+      setLegend('Plaintext ready in the Share box.');
+    }
+  });
+  importShareBtn.addEventListener('click', ()=>{
+    const raw = shareTextEl.value;
+    if(!raw.trim()){ alert('Share box is empty.'); return; }
+    if(handleShareImport(raw)){
+      log({type:'import'});
+      scheduleSave();
+    } else {
+      alert('Could not find a Sudoku share link or grid to import.');
+    }
+  });
+  document.getElementById('btn-new').addEventListener('click', ()=> newPuzzle(selDiff.value));
+  document.getElementById('btn-print').addEventListener('click', ()=>{ document.body.classList.toggle('print-hints', helpToggle.checked); window.print(); });
+  document.getElementById('btn-why').addEventListener('click', ()=>{ window.open('why.html','_blank','noopener'); });
+  helpToggle.addEventListener('change', ()=> { showHelp = helpToggle.checked; render(); scheduleSave(); });
+  selDiff.addEventListener('change', ()=>{ updateDifficultyUI(); scheduleSave(); });
+  document.getElementById('btn-vitamins').addEventListener('click', generateVitamins);
+  if(debugEnabled && vitaminsDebugDownloadBtn){ vitaminsDebugDownloadBtn.addEventListener('click', downloadVitaminsDebug); }
+  if(debugEnabled && vitaminsDebugClearBtn){ vitaminsDebugClearBtn.addEventListener('click', clearVitaminsDebug); }
+
+  // Keep overlay aligned on resize/zoom
+  const ro = new ResizeObserver(()=>{ syncOverlayToGrid(); });
+  ro.observe(gridEl);
+  window.addEventListener('resize', syncOverlayToGrid);
+  // Prevent default double-click behaviors (like text selection or zoom) on the grid area
+  gridEl.addEventListener('dblclick', (e)=>{ e.preventDefault(); }, true);
+
+  // Selection + keyboard
+  function select(rc){ selected = rc; render(); }
+  window.addEventListener('keydown', (e)=>{
+    const tag = (e.target && e.target.tagName)||''; if(tag==='INPUT' || tag==='TEXTAREA') return;
+    const k = e.key;
+    if(['ArrowLeft','h','H'].includes(k)){ select({r:selected.r, c: Math.max(0, selected.c-1)}); e.preventDefault(); }
+    else if(['ArrowRight','l','L'].includes(k)){ select({r:selected.r, c: Math.min(8, selected.c+1)}); e.preventDefault(); }
+    else if(['ArrowUp','k','K'].includes(k)){ select({r: Math.max(0, selected.r-1), c:selected.c}); e.preventDefault(); }
+    else if(['ArrowDown','j','J'].includes(k)){ select({r: Math.min(8, selected.r+1), c:selected.c}); e.preventDefault(); }
+    else if(k>='1' && k<='9'){ place(selected.r, selected.c, Number(k), true); e.preventDefault(); }
+    else if(k==='.' || k==='0' || k==='Backspace' || k==='Delete'){ place(selected.r, selected.c, 0, true); e.preventDefault(); }
+    else if(k==='u' || k==='U'){ if(stack.length) revertTo(stack.length-1); e.preventDefault(); }
+    else if(k==='p' || k==='P'){ document.body.classList.toggle('print-hints', helpToggle.checked); window.print(); e.preventDefault(); }
+    else if(k==='n' || k==='N'){ newPuzzle(selDiff.value); e.preventDefault(); }
+    else if(k==='s' || k==='S'){ copyLinkBtn.click(); e.preventDefault(); }
+    else if(k==='?'){ alert('Keys: arrows/hjkl move, 1–9 place, . or 0 clear, U undo, P print, N new, S share.'); }
+  });
+
+  // Logging
+/** log(evt) — append to action log */
+  function log(evt){ actionLog.push({ts: nowISO(), ...evt}); }
+
+  // Autosave + share
+/** currentState() — minimal JSON state for autosave/share */
+  function currentState(){ return { initial: initialBoard||make2DZero(), moves: stack.map(({r,c,prev,val,note})=>({r,c,prev,val,note})), help: showHelp, diff: selDiff.value }; }
+/** scheduleSave() — debounce localStorage writes (200ms) */
+  function scheduleSave(){ clearTimeout(saveT); saveT = setTimeout(saveState, 200); }
+/** saveState() — persist current state (best-effort) */
+  function saveState(){ try{ localStorage.setItem('sudoku_state_v1', JSON.stringify(currentState())); }catch(_){} }
+/**
+ * restoreFromLocal() → boolean
+ * Load prior session from localStorage; applies moves and options when found.
+ */
+  function restoreFromLocal(){ try{ const s=localStorage.getItem('sudoku_state_v1'); if(!s) return false; const st=JSON.parse(s); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateDifficultyUI(); render(); updateShareText(); return true; }catch(_){ return false; } }
+/** base64Encode(str) — UTF-8 safe btoa wrapper */
+
+  function base64Encode(str){ return btoa(String.fromCharCode(...new TextEncoder().encode(str))); }
+/** base64Decode(b64) — UTF-8 safe atob wrapper */
+  function base64Decode(b64){ return new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0))); }
+/** handleShareImport(raw) — decode share link or ASCII from textarea */
+  function handleShareImport(raw){
+    const linkMatch = raw.match(/#s=([A-Za-z0-9+/=]+)/);
+    if(linkMatch){
+      try{
+        const payload = JSON.parse(base64Decode(linkMatch[1]));
+        if(applyShareState(payload)) return true;
+      }catch(_){ /* fall through to ASCII parse */ }
+    }
+    try{
+      const grid = fromASCII(raw);
+      if(grid){ loadBoard(grid); return true; }
+    }catch(_){ return false; }
+    return false;
+  }
+/** applyShareState(state) — load puzzle from shared JSON payload */
+  function applyShareState(state){
+    if(!state) return false;
+    const base = Array.isArray(state.initial) ? state.initial : make2DZero();
+    const final = cloneBoard(base);
+    if(Array.isArray(state.moves)){
+      for(const mv of state.moves){
+        if(!mv) continue;
+        const {r,c,val} = mv;
+        if(Number.isInteger(r) && Number.isInteger(c) && Number.isInteger(val)){ final[r][c] = val; }
+      }
+    }
+    loadBoard(final);
+    if(typeof state.help === 'boolean'){ helpToggle.checked = state.help; showHelp = state.help; }
+    if(state.diff){ selDiff.value = state.diff; }
+    updateDifficultyUI();
+    render();
+    updateShareText();
+    return true;
+  }
+/** renderVitaminsSheet(puzzles, diff, includeHelp) — populate print layout */
+
+  function renderVitaminsSheet(puzzles, diff, includeHelp){
+    const sheet = document.getElementById('vitaminsSheet');
+    if(!sheet) return;
+    sheet.setAttribute('aria-hidden','false');
+    sheet.innerHTML='';
+    const titleText = `Intentional Sudoku - ${difficultyLabel(diff)}`;
+    puzzles.forEach((gridData)=>{
+      const page=document.createElement('section');
+      page.className='vitamin-page';
+      const title=document.createElement('h2');
+      title.className='print-title';
+      title.textContent=titleText;
+      page.appendChild(title);
+      page.appendChild(buildVitaminBoard(gridData, includeHelp));
+
+      const qr=buildQRSection();
+      page.appendChild(qr);
+      sheet.appendChild(page);
+    });
+    // Prepare optional diagnostics when debug flag is on
+    prepareVitaminsDebug(diff, includeHelp, puzzles.length);
+    sheet.scrollTop = 0;
+  }
+/** enterVitaminsMode(includeHelp, diffLabel) — prep UI for vitamins print */
+
+  function enterVitaminsMode(includeHelp, diffLabel){
+    vitaminsState.prevPrintHints = document.body.classList.contains('print-hints');
+    if(includeHelp){ document.body.classList.add('print-hints'); }
+    else { document.body.classList.remove('print-hints'); }
+    const vitaminsTitle = `Intentional Sudoku - ${diffLabel} Vitamins`;
+    document.title = vitaminsTitle;
+    document.body.classList.add('vitamins-mode');
+  }
+/** exitVitaminsMode() — restore interactive UI after printing */
+
+  function exitVitaminsMode(){
+    document.body.classList.remove('vitamins-mode');
+    if(vitaminsState.prevPrintHints){ document.body.classList.add('print-hints'); }
+    else { document.body.classList.remove('print-hints'); }
+    const sheet = document.getElementById('vitaminsSheet');
+    if(sheet){ sheet.innerHTML=''; sheet.setAttribute('aria-hidden','true'); }
+    updateDifficultyUI();
+    vitaminsState.active = false;
+    if(vitaminsState.afterPrintHandler){
+      window.removeEventListener('afterprint', vitaminsState.afterPrintHandler);
+      vitaminsState.afterPrintHandler = null;
+    }
+  }
+/** generateVitamins() — build 31-print sheet and trigger print dialog */
+
+  function generateVitamins(){
+    if(vitaminsState.active) return;
+    vitaminsState.active = true;
+    const diff = selDiff.value;
+    const includeHelp = helpToggle.checked;
+    const count = Math.min(999, Math.max(1, parseInt((vitaminsCountInput && vitaminsCountInput.value) || '9', 10) || 9));
+    const puzzles = [];
+    for(let i=0;i<count;i++){ puzzles.push(createPuzzle(diff)); }
+    renderVitaminsSheet(puzzles, diff, includeHelp);
+    enterVitaminsMode(includeHelp, difficultyLabel(diff));
+    log({type:'vitamins', difficulty: diff, help: includeHelp, count});
+    const cleanup = ()=>{ exitVitaminsMode(); };
+    const handler = ()=>{ cleanup(); };
+    vitaminsState.afterPrintHandler = handler;
+    window.addEventListener('afterprint', handler);
+    setTimeout(()=>{
+      window.print();
+      // Fallback: ensure cleanup even if afterprint fails to fire.
+      setTimeout(()=>{ if(vitaminsState.active) cleanup(); }, 500);
+    }, 200);
+  }
+/**
+ * createShareLink() → URL string with #s= payload containing base64-encoded JSON state.
+ */
+  function createShareLink(){ const payload = currentState(); const b64 = base64Encode(JSON.stringify(payload)); const url = new URL(window.location.href); url.hash = 's='+b64; return url.toString(); }
+/**
+ * restoreFromURL() → boolean
+ * If location.hash has #s=..., decode & restore session.
+ */
+  function restoreFromURL(){ const h=location.hash; if(!h || !h.startsWith('#s=')) return false; try{ const b64=h.slice(3); const json=base64Decode(b64); const st=JSON.parse(json); if(!st || !st.initial) return false; loadBoard(st.initial); for(const m of (st.moves||[])){ place(m.r,m.c,m.val,true,m.note||''); } if(typeof st.help==='boolean'){ helpToggle.checked=st.help; showHelp=st.help; } if(st.diff){ selDiff.value=st.diff; } updateDifficultyUI(); render(); updateShareText(); return true; }catch(_){ return false; } }
+
+  
+// ---------------------------------------------------------------------------
+// TODOs for future maintainers (non-functional notes)
+//  - Add optional strategy suggesters (pointing pairs, naked/hidden pairs)
+//    as *analysis* helpers that annotate UI without auto-placing.
+//  - Consider exporting/importing candidates alongside numbers in ASCII v2.
+//  - Accessibility: expose candidates with aria-describedby for screen readers.
+//  - E2E tests: small harness for import/export and undo determinism.
+// ---------------------------------------------------------------------------
+
+  // Initialize
+  // Try to restore from URL or localStorage; otherwise start fresh
+  const seedParam = urlParams.get('seed');
+  if(seedParam){ setRNGSeed(seedParam); }
+  if(!restoreFromURL()){
+    if(!restoreFromLocal()){
+      reset();
+      newPuzzle('medium');
+    }
+  }
+  updateDifficultyUI();
+  updateShareText();
+})();
+</script>
+</body>
+</html>

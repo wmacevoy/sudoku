@@ -37,6 +37,9 @@ export class SudokuRenderer {
         cell.className = 'cell';
         cell.dataset.row = String(r + 1);
         cell.dataset.col = String(c + 1);
+        if ((((r / 3) | 0) + ((c / 3) | 0)) % 2 === 1) {
+          cell.classList.add('box-alt');
+        }
 
         const val = board[r][c];
         const isUncertain = uncertain[r][c];
@@ -75,11 +78,13 @@ export class SudokuRenderer {
           for (const d of DIGITS) {
             const opt = document.createElement('span');
             opt.className = 'option';
+            opt.dataset.digit = String(d);
             opt.textContent = d;
             const { isActive, isPlaced } = computeActive(d);
             if (isActive) opt.classList.add('active');
             if (isPlaced) opt.classList.add('placed');
             if (highlightDigit === d) opt.classList.add('highlight');
+            if (d === 5) opt.classList.add('is-five');
             optionsEl.appendChild(opt);
           }
           if (val) optionsEl.classList.add('hidden');
