@@ -86,8 +86,12 @@ test(
   { timeout: 60000 },
   async () => {
     await withContestPage(async (driver) => {
-      const generateBtn = await driver.findElement(By.id('btn-generate'));
-      await generateBtn.click();
+      // Prevent the UI click from opening the print dialog in headless Chrome.
+      await driver.executeScript(() => {
+        window.print = () => {};
+      });
+      const printBtn = await driver.findElement(By.id('btn-print'));
+      await printBtn.click();
 
       await driver.wait(until.elementsLocated(By.css('#print-area .page')), 20000);
       const expectedPages = await driver.executeScript(() => {

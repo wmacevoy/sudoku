@@ -27,6 +27,7 @@
     input[type="number"]{width:120px;}
     button{cursor:pointer; background:var(--accent); color:#0b0c10; border:1px solid var(--accent); border-radius:10px; padding:10px 16px; font-weight:700;}
     button.secondary{background:transparent; color:var(--ink); border-color:var(--grid);}
+    button.active{outline:2px solid var(--accent);}
     .status{font-size:13px; color:var(--muted);}
     #print-area{background:var(--paper); color:#000; border-radius:12px; padding:12px; box-shadow:0 10px 28px rgba(0,0,0,0.4); display:block;}
     .page{
@@ -56,6 +57,10 @@
     .p-cell[data-col="1"], .p-cell[data-col="4"], .p-cell[data-col="7"]{border-left:0.6mm solid #000;}
     .p-cell[data-col="9"]{border-right:0.6mm solid #000;}
     .p-cell[data-row="9"]{border-bottom:0.6mm solid #000;}
+    .p-cell.guideline{display:grid; grid-template-columns:1fr 2fr 1fr; grid-template-rows:1fr 2fr 1fr; font-size:16px; gap:0; padding:3px;}
+    .p-cell.guideline .mini{display:flex; align-items:center; justify-content:center; line-height:1; color:#000; border:1px solid rgba(0,0,0,0.18); box-sizing:border-box;}
+    .p-cell.guideline .mini.blank{color:transparent;}
+    .key-faint{opacity:0.2;}
     .keys-title{margin:16px 0 8px 0; font-size:16px; font-weight:700; text-align:center;}
     .page-footer{margin-top:14px; font-size:15px; color:#000; display:flex; flex-direction:column; gap:12px; padding:0 10mm;}
     .footer-line{display:flex; align-items:center; gap:10px; margin:10mm 0;}
@@ -155,6 +160,7 @@
     </div>
     <div class="row">
       <button id="btn-print">Generate & Print</button>
+      <button id="btn-guideline" class="secondary"># Guidelines Off</button>
       <button id="btn-practice" type="button" class="secondary" onclick="window.location.href='index.html'">Practice</button>
     </div>
   </div>
@@ -169,6 +175,8 @@
     const statusEl = el('status');
     const printArea = el('print-area');
     const titleInput = el('contest-title');
+    const guidelineBtn = el('btn-guideline');
+    let guidelineMode = false;
     const inputs = {
       simple: { count: el('count-simple'), copies: el('copies-simple'), label: 'Simple' },
       easy: { count: el('count-easy'), copies: el('copies-easy'), label: 'Easy' },
@@ -182,13 +190,32 @@
       return Math.min(Math.max(Math.floor(n), min), max);
     }
 
-    function gridHTML(board) {
+    function gridHTML(board, opts = {}) {
+      const guideline = opts.guideline || false;
+      const mode = opts.mode || 'puzzle'; // 'puzzle' or 'key'
       return board
         .map((row, r) =>
           row
             .map((val, c) => {
               const content = val === 0 ? '' : val;
-              return `<div class="p-cell" data-row="${r + 1}" data-col="${c + 1}">${content}</div>`;
+              // Contestant pages: show normal grid; if guidelines are on and empty, show 1-9 minis.
+              if (mode === 'puzzle') {
+                if (guideline && !content) {
+                  const minis = Array.from({ length: 9 }, (_, idx) => {
+                    return `<span class="mini blank"></span>`;
+                  }).join('');
+                  return `<div class="p-cell guideline" data-row="${r + 1}" data-col="${c + 1}">${minis}</div>`;
+                }
+                return `<div class="p-cell" data-row="${r + 1}" data-col="${c + 1}">${content}</div>`;
+              }
+              // Guideline overlay for keys: repeat the digit in all mini slots except center.
+              const minis = Array.from({ length: 9 }, (_, idx) => {
+                const isCenter = idx === 4; // center spot
+                const digit = content && !isCenter ? content : '';
+                const blank = isCenter;
+                return `<span class="mini${blank ? ' blank' : ''}">${digit}</span>`;
+              }).join('');
+              return `<div class="p-cell guideline" data-row="${r + 1}" data-col="${c + 1}">${minis}</div>`;
             })
             .join('')
         )
@@ -250,7 +277,7 @@
           blocks.push(`
             <div class="page">
               <h2>${title}: Copy ${copy} of Puzzle ${p.letter}</h2>
-              <div class="p-grid">${gridHTML(p.puzzle)}</div>
+              <div class="p-grid">${gridHTML(p.puzzle, { guideline: guidelineMode, mode: 'puzzle' })}</div>
               <div class="page-footer">
                 <div class="footer-line"><span class="footer-label">Contestant(s):</span><span class="footer-blank"></span></div>
                 <div class="footer-line judgement-options">
@@ -273,18 +300,36 @@
         blocks.push(`
           <div class="page">
             <h2>${title}: Key for Puzzle ${p.letter}</h2>
-            <div class="p-grid">${gridHTML(p.solution)}</div>
+            <div class="p-grid${guidelineMode ? '' : ' key-faint'}">${gridHTML(p.solution, { guideline: guidelineMode, mode: 'key' })}</div>
           </div>
         `);
       }
 
       printArea.innerHTML = blocks.join('');
-      statusEl.textContent = `Generated ${puzzles.length} puzzles across ${puzzles.reduce((sum,p)=>sum+p.copies,0)} copies. Ready to print.`;
+      statusEl.textContent = `Generated ${puzzles.length} puzzles across ${puzzles.reduce((sum,p)=>sum+p.copies,0)} copies. ${guidelineMode ? 'Guideline keys on.' : 'Ready to print.'}`;
+    }
+
+    function setGuidelineMode(on) {
+      guidelineMode = on;
+      guidelineBtn.classList.toggle('active', guidelineMode);
+      guidelineBtn.textContent = guidelineMode ? '# Guidelines On' : '# Guidelines Off';
     }
 
     document.getElementById('btn-print').addEventListener('click', () => {
       generateContest();
       window.print();
+    });
+    guidelineBtn.addEventListener('click', () => {
+      setGuidelineMode(!guidelineMode);
+      generateContest();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === '#') {
+        event.preventDefault();
+        setGuidelineMode(!guidelineMode);
+        generateContest();
+      }
     });
   </script>
 </body>
