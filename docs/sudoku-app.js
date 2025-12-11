@@ -1,5 +1,5 @@
 import { SudokuEngine, DIGITS, N, make2D } from './sudoku-engine.js';
-import { SudokuRenderer } from './sudoku-render.js';
+import { SudokuRenderer, ensurePrintStyles, renderPrintGrid } from './sudoku-render.js';
 
 export function initSudokuApp(options = {}) {
   const win =
@@ -53,6 +53,7 @@ export function initSudokuApp(options = {}) {
   let showOptionGrid = false;
   let helpEnabled = true;
   
+  ensurePrintStyles(doc);
   const renderer = new SudokuRenderer({ container: gridEl });
   
   // --- Tap helpers (single vs double) ---
@@ -483,36 +484,24 @@ export function initSudokuApp(options = {}) {
     const board = game.board;
     const includeOptions = showOptionGrid;
     const diffLabel = selDiff.value ? selDiff.value[0].toUpperCase() + selDiff.value.slice(1) : '';
-    const gridHTML = board
-      .map((row, r) =>
-        row
-          .map((val, c) => {
-            const notesArr = includeOptions ? [...notes[r][c]].sort((a, b) => a - b) : [];
-            const candHTML =
-              includeOptions && notesArr.length && val === 0
-                ? `<div class="p-cands">${DIGITS.map(
-                    (d) =>
-                      `<div class="p-cand${d === 5 ? ' is-five' : ''}">${notesArr.includes(d) ? d : ''}</div>`
-                  ).join('')}</div>`
-                : '';
-            return `<div class="p-cell" data-row="${r + 1}" data-col="${c + 1}">${
-              val || ''
-            }${candHTML}</div>`;
-          })
-          .join('')
-      )
-      .join('');
+    const gridHTML = renderPrintGrid({
+      board,
+      showGuides: includeOptions,
+      asKey: false
+    });
     printSheet.innerHTML = `
-      <div class="print-wrapper ${includeOptions ? 'with-guides' : ''}">
-        <h1>Intentional Sudoku - ${diffLabel || 'Puzzle'}</h1>
-        <div class="p-grid">${gridHTML}</div>
-        <section class="print-qr" aria-label="QR code to play online">
-          <img src="qr.png" alt="QR code for intentionalsudoku.com">
-          <div class="txt">
-            <div><strong>No ads or tracking:</strong> online or (better) print and play offline.</div>
-            <div>intentionalsudoku.com</div>
-          </div>
-        </section>
+      <div class="sudoku-print">
+        <div class="print-wrapper ${includeOptions ? 'with-guides' : ''}">
+          <h1>Intentional Sudoku - ${diffLabel || 'Puzzle'}</h1>
+          ${gridHTML}
+          <section class="print-qr" aria-label="QR code to play online">
+            <img src="qr.png" alt="QR code for intentionalsudoku.com">
+            <div class="txt">
+              <div><strong>No ads or tracking:</strong> online or (better) print and play offline.</div>
+              <div>intentionalsudoku.com</div>
+            </div>
+          </section>
+        </div>
       </div>
     `;
     setLegend('Print sheet ready. Use your browser print dialog.');

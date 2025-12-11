@@ -28,7 +28,7 @@ export class SudokuRenderer {
     onCellSingleTap,
     onCellDoubleTap
   }) {
-    const showOptions = this.showOptionGrid = showOptionGrid;
+    const showOptions = (this.showOptionGrid = showOptionGrid);
     this.container.innerHTML = '';
 
     for (let r = 0; r < N; r++) {
@@ -126,4 +126,74 @@ export class SudokuRenderer {
       }
     }
   }
+}
+
+const PRINT_STYLE_ID = 'sudoku-print-style';
+
+const PRINT_STYLES = `
+.sudoku-print{font-family:"Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; color:#000; background:#fff;}
+.sudoku-print .print-wrapper{margin:0 auto; padding:1cm; width:100%; max-width:900px; color:#000; background:#fff;}
+.sudoku-print h1{text-align:center; margin:0 0 12px 0; font-size:24px;}
+.sudoku-print .p-grid{display:grid; grid-template-columns:repeat(9,1fr); grid-template-rows:repeat(9,1fr); width:100%; aspect-ratio:1/1; border:0.6mm solid #000; margin:0 auto;}
+.sudoku-print .p-cell{border:0.12mm solid rgba(0,0,0,0.45); position:relative; display:flex; align-items:center; justify-content:center; font-size:64px; font-weight:700; min-height:64px;}
+.sudoku-print .p-cell[data-row="1"], .sudoku-print .p-cell[data-row="4"], .sudoku-print .p-cell[data-row="7"]{border-top:0.6mm solid #000;}
+.sudoku-print .p-cell[data-col="1"], .sudoku-print .p-cell[data-col="4"], .sudoku-print .p-cell[data-col="7"]{border-left:0.6mm solid #000;}
+.sudoku-print .p-cell[data-col="9"]{border-right:0.6mm solid #000;}
+.sudoku-print .p-cell[data-row="9"]{border-bottom:0.6mm solid #000;}
+.sudoku-print .p-cell.guideline{display:grid; grid-template-columns:1fr 2fr 1fr; grid-template-rows:1fr 2fr 1fr; font-size:16px; gap:0; padding:3px;}
+.sudoku-print .p-cell.guideline .mini{display:flex; align-items:center; justify-content:center; line-height:1; color:#000; border:1px solid rgba(0,0,0,0.18); box-sizing:border-box;}
+.sudoku-print .p-cell.guideline .mini.blank{color:transparent;}
+.sudoku-print .key-faint{opacity:0.2;}
+.sudoku-print .print-qr{margin:16px auto 0 auto; display:flex; align-items:center; gap:12px; width:90vw; max-width:720px;}
+.sudoku-print .print-qr img{width:120px; height:120px;}
+.sudoku-print .print-qr .txt{font-size:12pt; color:#000;}
+.sudoku-print .with-guides .p-cell::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background-image:
+    linear-gradient(#999 0 0),
+    linear-gradient(#999 0 0),
+    linear-gradient(#999 0 0),
+    linear-gradient(#999 0 0);
+  background-size:100% 1px, 100% 1px, 1px 100%, 1px 100%;
+  background-position:0 25%, 0 75%, 25% 0, 75% 0;
+  background-repeat:no-repeat;
+  opacity:0.6;
+}
+`;
+
+export function ensurePrintStyles(doc = typeof document !== 'undefined' ? document : null) {
+  if (!doc) return;
+  if (doc.getElementById(PRINT_STYLE_ID)) return;
+  const style = doc.createElement('style');
+  style.id = PRINT_STYLE_ID;
+  style.textContent = PRINT_STYLES;
+  doc.head.appendChild(style);
+}
+
+export function renderPrintGrid({ board, showGuides = false, asKey = false, faint = false }) {
+  const cells = board
+    .map((row, r) =>
+      row
+        .map((val, c) => {
+          const content = val === 0 ? '' : val;
+          if (showGuides && (asKey || content === '')) {
+            const minis = Array.from({ length: 9 }, (_, idx) => {
+              const isCenter = idx === 4;
+              const digit = asKey && content && !isCenter ? content : '';
+              const blank = !digit;
+              return `<span class="mini${blank ? ' blank' : ''}">${digit}</span>`;
+            }).join('');
+            return `<div class="p-cell guideline" data-row="${r + 1}" data-col="${c + 1}">${minis}</div>`;
+          }
+          return `<div class="p-cell" data-row="${r + 1}" data-col="${c + 1}">${content}</div>`;
+        })
+        .join('')
+    )
+    .join('');
+  const classes = ['p-grid'];
+  if (faint) classes.push('key-faint');
+  return `<div class="${classes.join(' ')}">${cells}</div>`;
 }
