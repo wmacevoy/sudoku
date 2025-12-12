@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contest Clock</title>
+  <style>
+    :root{
+      --bg:#0b0c10;
+      --panel:#0f141d;
+      --ink:#e8ecf2;
+      --muted:#94a3b8;
+      --accent:#60a5fa;
+      --danger:#f97316;
+      --ok:#22c55e;
+    }
+    *{box-sizing:border-box;}
+    body{margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; background:var(--bg); color:var(--ink); font-family:"Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding:20px;}
+    .controls{background:var(--panel); padding:14px 16px; border-radius:14px; border:1px solid #111827; display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    label{font-size:14px; color:var(--muted); display:flex; flex-direction:column; gap:6px;}
+    input{background:var(--bg); color:var(--ink); border:1px solid #1f2430; border-radius:8px; padding:8px 10px;}
+    button{cursor:pointer; background:var(--accent); color:#0b0c10; border:1px solid var(--accent); border-radius:10px; padding:10px 14px; font-weight:700;}
+    .clock-wrap{position:relative; width:min(80vw, 360px); aspect-ratio:1/1; display:flex; align-items:center; justify-content:center;}
+    .clock-svg{width:100%; height:100%; transform:rotate(-90deg);}
+    .circle-bg{stroke:#1f2430; stroke-width:16; fill:none;}
+    .circle-progress{stroke:var(--accent); stroke-width:16; fill:none; stroke-linecap:round; transition:stroke 0.2s;}
+    .center-label{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:clamp(18px, 5vw, 42px); text-align:center; padding:10px; line-height:1.2;}
+    .smiley{font-size:clamp(48px, 10vw, 96px);}
+    .back-btn{background:transparent; color:var(--ink); border-color:#1f2430;}
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <label>Start time
+      <input id="start-time" type="datetime-local" />
+    </label>
+    <label>Length (minutes)
+      <input id="length-min" type="number" min="1" max="300" value="30" />
+    </label>
+    <button id="btn-set">Set Timer</button>
+    <button class="back-btn" onclick="window.location.href='contest.html'" type="button">Back</button>
+  </div>
+
+  <div class="clock-wrap">
+    <svg class="clock-svg" viewBox="0 0 200 200" aria-hidden="true">
+      <circle class="circle-bg" cx="100" cy="100" r="80"></circle>
+      <circle class="circle-progress" cx="100" cy="100" r="80" stroke-dasharray="502" stroke-dashoffset="502"></circle>
+    </svg>
+    <div class="center-label" id="center-label">DO NOT TOUCH ANYTHING</div>
+  </div>
+
+  <script type="module">
+    const startInput = document.getElementById('start-time');
+    const lenInput = document.getElementById('length-min');
+    const setBtn = document.getElementById('btn-set');
+    const progress = document.querySelector('.circle-progress');
+    const label = document.getElementById('center-label');
+
+    const CIRCUMFERENCE = 2 * Math.PI * 80; // r=80 matches svg
+    progress.setAttribute('stroke-dasharray', String(CIRCUMFERENCE));
+    progress.setAttribute('stroke-dashoffset', String(CIRCUMFERENCE));
+
+    function defaultStart() {
+      const now = new Date();
+      now.setSeconds(0, 0);
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(
+        now.getHours()
+      )}:${pad(now.getMinutes())}`;
+    }
+
+    startInput.value = defaultStart();
+
+    let startTime = new Date(startInput.value);
+    let endTime = new Date(startTime.getTime() + Number(lenInput.value || 30) * 60 * 1000);
+
+    function clamp(val, min, max) {
+      return Math.min(Math.max(val, min), max);
+    }
+
+    function setTimes() {
+      const parsedStart = new Date(startInput.value);
+      if (!isNaN(parsedStart.getTime())) {
+        startTime = parsedStart;
+      }
+      const mins = clamp(Number(lenInput.value) || 30, 1, 300);
+      lenInput.value = String(mins);
+      endTime = new Date(startTime.getTime() + mins * 60 * 1000);
+      update(); // immediate refresh
+    }
+
+    setBtn.addEventListener('click', setTimes);
+
+    function update() {
+      const now = new Date();
+      if (now < startTime) {
+        progress.setAttribute('stroke-dashoffset', String(CIRCUMFERENCE));
+        label.textContent = 'DO NOT TOUCH ANYTHING';
+        label.classList.remove('smiley');
+        return;
+      }
+      const total = endTime - startTime;
+      const remaining = endTime - now;
+      if (remaining <= 0) {
+        progress.setAttribute('stroke-dashoffset', '0');
+        label.textContent = '😊';
+        label.classList.add('smiley');
+        return;
+      }
+      const ratio = clamp(1 - remaining / total, 0, 1);
+      const offset = CIRCUMFERENCE * (1 - ratio);
+      progress.setAttribute('stroke-dashoffset', String(offset));
+      const minutesLeft = Math.ceil(remaining / 60000);
+      label.textContent = `${minutesLeft} minute${minutesLeft === 1 ? '' : 's'} remaining`;
+      label.classList.remove('smiley');
+    }
+
+    update();
+    setInterval(update, 1000);
+  </script>
+</body>
+</html>

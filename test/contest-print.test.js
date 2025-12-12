@@ -90,6 +90,8 @@ test(
       await driver.executeScript(() => {
         window.print = () => {};
       });
+      const generateBtn = await driver.findElement(By.id('btn-generate'));
+      await generateBtn.click();
       const printBtn = await driver.findElement(By.id('btn-print'));
       await printBtn.click();
 

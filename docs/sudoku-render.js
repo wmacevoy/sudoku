@@ -147,7 +147,7 @@ const PRINT_STYLES = `
 .sudoku-print .print-qr{margin:16px auto 0 auto; display:flex; align-items:center; gap:12px; width:90vw; max-width:720px;}
 .sudoku-print .print-qr img{width:120px; height:120px;}
 .sudoku-print .print-qr .txt{font-size:12pt; color:#000;}
-.sudoku-print .with-guides .p-cell::before{
+.sudoku-print .p-cell.guideline::before{
   content:'';
   position:absolute;
   inset:0;
@@ -180,13 +180,17 @@ export function renderPrintGrid({ board, showGuides = false, asKey = false, fain
         .map((val, c) => {
           const content = val === 0 ? '' : val;
           if (showGuides && (asKey || content === '')) {
-            const minis = Array.from({ length: 9 }, (_, idx) => {
-              const isCenter = idx === 4;
-              const digit = asKey && content && !isCenter ? content : '';
-              const blank = !digit;
-              return `<span class="mini${blank ? ' blank' : ''}">${digit}</span>`;
-            }).join('');
-            return `<div class="p-cell guideline" data-row="${r + 1}" data-col="${c + 1}">${minis}</div>`;
+            const classes = ['p-cell', 'guideline'];
+            if (asKey) {
+              const minis = Array.from({ length: 9 }, (_, idx) => {
+                const isCenter = idx === 4;
+                const digit = content && !isCenter ? content : '';
+                const blank = !digit;
+                return `<span class="mini${blank ? ' blank' : ''}">${digit}</span>`;
+              }).join('');
+              return `<div class="${classes.join(' ')}" data-row="${r + 1}" data-col="${c + 1}">${minis}</div>`;
+            }
+            return `<div class="${classes.join(' ')}" data-row="${r + 1}" data-col="${c + 1}"></div>`;
           }
           return `<div class="p-cell" data-row="${r + 1}" data-col="${c + 1}">${content}</div>`;
         })

@@ -484,14 +484,10 @@ export function initSudokuApp(options = {}) {
     const board = game.board;
     const includeOptions = showOptionGrid;
     const diffLabel = selDiff.value ? selDiff.value[0].toUpperCase() + selDiff.value.slice(1) : '';
-    const gridHTML = renderPrintGrid({
-      board,
-      showGuides: includeOptions,
-      asKey: false
-    });
+    const gridHTML = renderPrintGrid({ board, showGuides: includeOptions, asKey: false });
     printSheet.innerHTML = `
       <div class="sudoku-print">
-        <div class="print-wrapper ${includeOptions ? 'with-guides' : ''}">
+        <div class="print-wrapper">
           <h1>Intentional Sudoku - ${diffLabel || 'Puzzle'}</h1>
           ${gridHTML}
           <section class="print-qr" aria-label="QR code to play online">
